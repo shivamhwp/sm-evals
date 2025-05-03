@@ -19,10 +19,10 @@ export interface ConversationData {
     [key: string]: string | Session;
   };
   observation: {
-    [key: string]: string;
+    [key: string]: string | Record<string, unknown>;
   };
   session_summary: {
-    [key: string]: string;
+    [key: string]: string | Record<string, unknown>;
   };
   event_summary: {
     [key: string]: any[];

@@ -40,15 +40,32 @@ async function deleteMemories() {
   console.log("Starting memory deletion process...");
 
   // Read memory IDs from file - directly as an array of strings
-  let memoryIds: string[];
-  try {
-    const fileData = fs.readFileSync(MEM_ID_FILE, "utf-8");
-    memoryIds = JSON.parse(fileData);
-    // No need for additional processing as the file contains a simple array of IDs
-  } catch (error) {
-    console.error("Error reading memory IDs file:", error);
+  let memoryIds: string[] = [];
+  let fileExists = fs.existsSync(MEM_ID_FILE);
+  let fileData = "";
+
+  if (fileExists) {
+    fileData = fs.readFileSync(MEM_ID_FILE, "utf-8").trim();
+    // If file is not empty, use its contents
+    if (fileData && fileData !== "[]") {
+      try {
+        memoryIds = JSON.parse(fileData);
+      } catch (error) {
+        console.error("Error parsing memory IDs file:", error);
+        memoryIds = await fetchAndSaveMemoryIds();
+      }
+    } else {
+      // File is empty or just an empty array, fetch new IDs
+      memoryIds = await fetchAndSaveMemoryIds();
+    }
+  } else {
     // If file doesn't exist, fetch IDs first
     memoryIds = await fetchAndSaveMemoryIds();
+  }
+
+  if (!Array.isArray(memoryIds) || memoryIds.length === 0) {
+    console.log("No memory IDs found to delete.");
+    return;
   }
 
   console.log(`Found ${memoryIds.length} memories to delete`);
@@ -84,6 +101,12 @@ async function deleteMemories() {
   console.log("\nDeletion Summary:");
   console.log(`- Successfully deleted: ${successCount}`);
   console.log(`- Failed to delete: ${failCount}`);
+
+  // If all deletions succeeded, clear the mem-id.json file
+  if (successCount === memoryIds.length) {
+    fs.writeFileSync(MEM_ID_FILE, "[]");
+    console.log(`Cleared all content in ${MEM_ID_FILE}`);
+  }
 }
 
 // Main function

@@ -1,5 +1,4 @@
 import { locomoData, env } from "./utils/config";
-import { addMemory, searchMemories } from "./api/supermemory";
 
 async function main() {
   console.log("\n===== Supermemory Locomo Benchmark Test =====\n");
