@@ -5,7 +5,7 @@
   "scripts": {
     "run-eval": "bun run src/index.ts",
     "load": "bun run src/load.ts",
-    "search": "bun run src/search.ts",
+    "search": "bun run src/search/search.ts",
     "delete-mems": "bun run src/delete-memories.ts"
   },
   "devDependencies": {
@@ -15,6 +15,9 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@ai-sdk/google": "^1.2.14",
+    "@ai-sdk/openai": "^1.3.21",
+    "ai": "^4.3.13",
     "dotenv": "^16.5.0"
   }
 }

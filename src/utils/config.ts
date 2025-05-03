@@ -8,6 +8,8 @@ config();
 // Function to validate environment variables
 function validateEnv() {
   const apiKey = process.env.SUPERMEMORY_API_KEY;
+  const googleApiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+  const openaiApiKey = process.env.OPENAI_API_KEY;
 
   if (!apiKey) {
     console.warn("Warning: SUPERMEMORY_API_KEY is not set in .env file");
@@ -17,11 +19,24 @@ function validateEnv() {
     // Return a placeholder value for development
     return {
       apiKey: "development_key",
+      googleApiKey: "development_key",
+      openaiApiKey: "development_key",
     };
+  }
+
+  if (!googleApiKey) {
+    console.warn(
+      "Warning: GOOGLE_GENERATIVE_AI_API_KEY is not set in .env file"
+    );
+    console.warn(
+      "Please set up your Google API key in a .env file to use the answer generation features"
+    );
   }
 
   return {
     apiKey,
+    googleApiKey: googleApiKey || "",
+    openaiApiKey: openaiApiKey || "",
   };
 }
 
