@@ -45,11 +45,15 @@ async function runSearchEvaluation() {
       signale.info(`Category: ${qa.category}`);
       signale.info(`Ground Truth Answer: ${qa.answer}`);
 
+      //  --------------------------------
+
       const searchParams = {
         q: qa.question,
         limit: 3,
         filter: { sample_id: conversation.sample_id },
       };
+
+      //  --------------------------------
 
       const searchResponse = await searchMemories(searchParams);
       const resultContents = searchResponse.results.map(

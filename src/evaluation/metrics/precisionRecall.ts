@@ -1,9 +1,12 @@
+import signale from "../../utils/logger";
 import { getCosineSimilarity } from "../search/searchUtils";
 
 export async function calculatePrecisionRecall(
   generated: string,
   groundTruth: string
 ) {
+  signale.info(`comparing the response with the ground truth`);
+
   // Get cosine similarity from utils
   const overallSimilarity = await getCosineSimilarity(generated, groundTruth);
 
