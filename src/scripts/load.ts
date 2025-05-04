@@ -1,7 +1,8 @@
-import { locomoData } from "./utils/config";
-import { batchAddMemories } from "./api/supermemory";
-import type { AddMemoryRequest } from "./types/supermemory";
-import type { ConversationData, DialogTurn } from "./types/locomo";
+import { locomoData } from "../utils/config";
+import { batchAddMemories } from "../api/supermemory";
+import type { AddMemoryRequest } from "../types/supermemory";
+import type { ConversationData, DialogTurn } from "../types/locomo";
+import signale from "../utils/logger";
 
 // Define a type for observation/summary data including the session key
 interface TextWithKey {
@@ -44,13 +45,13 @@ function extractDialogTurns(conversation: ConversationData): {
             typeof item.dia_id === "string"
         );
         if (turns.length !== sessionContent.length) {
-          console.warn(
+          signale.warn(
             `[${sampleId}/${sessionKey}] Filtered out invalid DialogTurn objects from direct array.`
           );
         }
         dialogTurns.push(...turns);
       } catch (e) {
-        console.warn(
+        signale.warn(
           `[${sampleId}/${sessionKey}] Error processing session key which was an array:`,
           e
         );
@@ -82,20 +83,20 @@ function extractDialogTurns(conversation: ConversationData): {
                 typeof item.dia_id === "string"
             );
             if (turns.length !== potentialTurnsData.length) {
-              console.warn(
+              signale.warn(
                 `[${sampleId}/${sessionKey}/${turnKey}] Filtered out invalid DialogTurn objects.`
               );
             }
             dialogTurns.push(...turns);
           } catch (e) {
-            console.warn(
+            signale.warn(
               `[${sampleId}/${sessionKey}/${turnKey}] Error processing turns:`,
               e
             );
           }
         } else {
           // If it's NOT an array, log a warning. The structure is unexpected.
-          console.warn(
+          signale.warn(
             `[${sampleId}/${sessionKey}/${turnKey}] Unexpected data type for turns: Expected array, got ${typeof potentialTurnsData}. Skipping.`
           );
         }
@@ -103,7 +104,7 @@ function extractDialogTurns(conversation: ConversationData): {
     }
     // Handle other unexpected types (null, string, number, etc.)
     else {
-      console.warn(
+      signale.warn(
         `[${sampleId}/${sessionKey}] Skipping session key due to unexpected main content type: ${typeof sessionContent}`
       );
     }
@@ -155,7 +156,7 @@ function extractDialogTurns(conversation: ConversationData): {
               key: sessionKey,
               text: observationText,
             });
-            console.log(
+            signale.log(
               `[${sampleId}/${sessionKey}] Extracted speaker observations successfully.`
             );
           } else {
@@ -165,17 +166,17 @@ function extractDialogTurns(conversation: ConversationData): {
               key: sessionKey,
               text: `Raw observation data: ${stringifiedContent}`,
             });
-            console.log(
+            signale.log(
               `[${sampleId}/${sessionKey}] Used stringified object as fallback.`
             );
           }
         } catch (e) {
-          console.warn(
+          signale.warn(
             `[${sampleId}/${sessionKey}] Failed to process observation object: ${e}`
           );
         }
       } else {
-        console.warn(
+        signale.warn(
           `[${sampleId}/${sessionKey}] Skipping observation with invalid data (type: ${typeof observationData})`
         );
       }
@@ -227,7 +228,7 @@ function extractDialogTurns(conversation: ConversationData): {
               key: sessionKey,
               text: summaryText,
             });
-            console.log(
+            signale.log(
               `[${sampleId}/${sessionKey}] Extracted speaker summaries successfully.`
             );
           } else {
@@ -237,17 +238,17 @@ function extractDialogTurns(conversation: ConversationData): {
               key: sessionKey,
               text: `Raw summary data: ${stringifiedContent}`,
             });
-            console.log(
+            signale.log(
               `[${sampleId}/${sessionKey}] Used stringified object as fallback for summary.`
             );
           }
         } catch (e) {
-          console.warn(
+          signale.warn(
             `[${sampleId}/${sessionKey}] Failed to process summary object: ${e}`
           );
         }
       } else {
-        console.warn(
+        signale.warn(
           `[${sampleId}/${sessionKey}] Skipping summary with invalid data (type: ${typeof summaryData})`
         );
       }
@@ -271,7 +272,7 @@ function dialogTurnToMemory(
     typeof dialogTurn.dia_id !== "string"
   ) {
     // This should ideally not happen if filtering in extractDialogTurns works.
-    console.error(
+    signale.error(
       // Use error maybe? If it gets here, it's unexpected.
       `[${sampleId}] Invalid DialogTurn object reached dialogTurnToMemory:`,
       dialogTurn
@@ -327,7 +328,7 @@ function textToMemory(
   // but good as a safeguard.
   if (!data || typeof data.text !== "string" || typeof data.key !== "string") {
     // This should ideally not happen now.
-    console.error(
+    signale.error(
       // Use error
       `[${sampleId}] Invalid TextWithKey object reached textToMemory for type ${type}:`,
       data
@@ -348,16 +349,16 @@ function textToMemory(
 }
 
 async function loadLocomoData() {
-  console.log("Loading Locomo data into Supermemory...");
+  signale.log("Loading Locomo data into Supermemory...");
 
   // Ensure locomoData is an array before proceeding
   if (!Array.isArray(locomoData)) {
-    console.error("Error: locomoData is not an array. Aborting load.");
+    signale.error("Error: locomoData is not an array. Aborting load.");
     process.exit(1);
     return; // Added return for type safety, although process.exit stops execution
   }
 
-  console.log(`Found ${locomoData.length} conversations`);
+  signale.log(`Found ${locomoData.length} conversations`);
 
   let totalDialogs = 0;
   let totalObservations = 0;
@@ -374,14 +375,14 @@ async function loadLocomoData() {
       typeof conversation !== "object" ||
       !conversation.sample_id
     ) {
-      console.warn(
+      signale.warn(
         `Skipping invalid conversation data at index ${i}. Missing basic structure or sample_id.`
       );
       failedConversations++;
       continue; // Skip to the next conversation
     }
 
-    console.log(
+    signale.log(
       `Processing conversation ${i + 1}/${locomoData.length} (${
         conversation.sample_id
       })`
@@ -408,32 +409,32 @@ async function loadLocomoData() {
 
       // Batch upload memories only if there are memories to upload
       if (dialogMemories.length > 0) {
-        console.log(`Uploading ${dialogMemories.length} dialog turns...`);
+        signale.log(`Uploading ${dialogMemories.length} dialog turns...`);
         await batchAddMemories(dialogMemories);
         totalDialogs += dialogMemories.length;
       } else {
-        console.log("No valid dialog turns found to upload.");
+        signale.log("No valid dialog turns found to upload.");
       }
 
       if (observationMemories.length > 0) {
-        console.log(`Uploading ${observationMemories.length} observations...`);
+        signale.log(`Uploading ${observationMemories.length} observations...`);
         await batchAddMemories(observationMemories);
         totalObservations += observationMemories.length;
       } else {
-        console.log("No valid observations found to upload.");
+        signale.log("No valid observations found to upload.");
       }
 
       if (summaryMemories.length > 0) {
-        console.log(`Uploading ${summaryMemories.length} session summaries...`);
+        signale.log(`Uploading ${summaryMemories.length} session summaries...`);
         await batchAddMemories(summaryMemories);
         totalSummaries += summaryMemories.length;
       } else {
-        console.log("No valid session summaries found to upload.");
+        signale.log("No valid session summaries found to upload.");
       }
 
       processedConversations++;
     } catch (error) {
-      console.error(
+      signale.error(
         `Error processing conversation ${conversation.sample_id}:`,
         error
       );
@@ -443,14 +444,14 @@ async function loadLocomoData() {
     }
   }
 
-  console.log("\n--- Load Process Summary ---");
-  console.log(`- Total conversations processed: ${processedConversations}`);
-  console.log(`- Total conversations failed/skipped: ${failedConversations}`);
-  console.log("\n--- Upload Summary ---");
-  console.log(`- Total dialog turns uploaded: ${totalDialogs}`);
-  console.log(`- Total observations uploaded: ${totalObservations}`);
-  console.log(`- Total session summaries uploaded: ${totalSummaries}`);
-  console.log(
+  signale.log("\n--- Load Process Summary ---");
+  signale.log(`- Total conversations processed: ${processedConversations}`);
+  signale.log(`- Total conversations failed/skipped: ${failedConversations}`);
+  signale.log("\n--- Upload Summary ---");
+  signale.log(`- Total dialog turns uploaded: ${totalDialogs}`);
+  signale.log(`- Total observations uploaded: ${totalObservations}`);
+  signale.log(`- Total session summaries uploaded: ${totalSummaries}`);
+  signale.log(
     `- Total memories uploaded: ${
       totalDialogs + totalObservations + totalSummaries
     }`
@@ -461,9 +462,9 @@ async function loadLocomoData() {
 async function main() {
   try {
     await loadLocomoData();
-    console.log("\nData loading process completed.");
+    signale.log("\nData loading process completed.");
   } catch (error) {
-    console.error("Critical error during data loading:", error);
+    signale.error("Critical error during data loading:", error);
     process.exit(1);
   }
 }

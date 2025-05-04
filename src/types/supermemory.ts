@@ -36,3 +36,14 @@ export interface SearchResponse {
   total: number;
   timing: number;
 }
+
+//  these are for calculating metrics
+interface Metrics {
+  totalQuestions: number;
+  correctAnswers: number;
+  partialAnswers: number;
+  incorrectAnswers: number;
+  f1Score: number;
+  precision: number;
+  recall: number;
+}

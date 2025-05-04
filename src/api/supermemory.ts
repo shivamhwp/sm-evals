@@ -5,8 +5,9 @@ import type {
   SearchResponse,
 } from "../types/supermemory";
 import { env } from "../utils/config";
+import signale from "../utils/logger";
 
-const API_BASE_URL = "https://v2.api.supermemory.ai/";
+const API_BASE_URL = env.supermemoryApiUrl;
 
 const headers = {
   "x-api-key": `${env.apiKey}`,
@@ -27,7 +28,7 @@ export async function addMemory(
     });
 
     // Log status regardless of success/failure
-    console.log(`Add memory attempt status: ${response.status}`);
+    signale.info(`Add memory attempt status: ${response.status}`);
 
     if (!response.ok) {
       // Attempt to get more details from the response body
@@ -35,7 +36,7 @@ export async function addMemory(
       try {
         errorBody = await response.text(); // Read body as text
       } catch (bodyError) {
-        console.error("Error reading response body:", bodyError);
+        signale.error("Error reading response body:", bodyError);
       }
       // Throw a more informative error
       throw new Error(
@@ -47,10 +48,10 @@ export async function addMemory(
     return await response.json();
   } catch (error) {
     // Log the error - it now includes the body if it was an HTTP error from above
-    console.error("Error in addMemory function:", error);
+    signale.error("Error in addMemory function:", error);
     // Optional: Log the data that caused the error, if response isn't available (e.g., network error)
     if (!response) {
-      console.error("Failed request data:", JSON.stringify(data));
+      signale.error("Failed request data:", JSON.stringify(data));
     }
     // Re-throw the error to be caught by the caller (e.g., batchAddMemories)
     throw error;
@@ -68,7 +69,7 @@ export async function searchMemories(
       body: JSON.stringify(params),
     });
 
-    console.log(response.status);
+    signale.info(`Search memory attempt status: ${response.status}`);
 
     if (!response.ok) {
       throw new Error(`HTTP error! Status: ${response.status}`);
@@ -76,7 +77,7 @@ export async function searchMemories(
 
     return await response.json();
   } catch (error) {
-    console.error("Error searching memories:", error);
+    signale.error("Error searching memories:", error);
     throw error;
   }
 }
@@ -95,10 +96,10 @@ export async function batchAddMemories(
   for (const memory of memories) {
     try {
       const response = await addMemory(memory);
-      // console.log(response.status); // Status is already logged in addMemory
+      // Status is already logged in addMemory
       results.push(response);
     } catch (error) {
-      console.error(`Failed to add memory: ${JSON.stringify(memory)}`, error);
+      signale.error(`Failed to add memory: ${JSON.stringify(memory)}`, error);
       // Optionally break or stop processing if one error is critical
       // break;
     }
