@@ -4,21 +4,44 @@ import { generateAnswer } from "./searchUtils";
 import type { ConversationData } from "../../types/locomo";
 import { calculatePrecisionRecall } from "../metrics/precisionRecall";
 import { calculateAnswerF1 } from "../metrics/f1";
+import { calculateBleu1 } from "../metrics/bleu";
 import signale from "../../utils/logger";
+import { createMetricsObject, displayAndExportResults } from "../results";
+import type { CategoryMetrics } from "../results";
+import { getCategoryName, CATEGORY_ID_MAPPING } from "../../utils/getCategory";
 
-async function runSearchEvaluation() {
-  signale.info("Running Supermemory search evaluation on Locomo QA...");
+async function runSearchEvaluation(targetCategory?: string) {
+  // If targetCategory is provided, validate and convert to category ID
+  let categoryId: number | undefined;
+  let categoryNumber: number | undefined;
+
+  if (targetCategory) {
+    categoryId = CATEGORY_ID_MAPPING[targetCategory.toLowerCase()];
+    if (!categoryId) {
+      signale.error(`Invalid category: ${targetCategory}`);
+      signale.info(
+        "Available categories: single-hop, multi-hop, open-domain, temporal, adversarial"
+      );
+      process.exit(1);
+    }
+    categoryNumber = categoryId;
+
+    signale.info(
+      `Running Supermemory search evaluation on Locomo QA for ${getCategoryName(
+        categoryId.toString()
+      )} questions...`
+    );
+  } else {
+    signale.info(
+      "Running Supermemory search evaluation on all Locomo QA questions..."
+    );
+  }
+
   signale.info(`Found ${locomoData.length} conversations`);
 
-  const metrics = {
-    totalQuestions: 0,
-    correctAnswers: 0,
-    partialAnswers: 0,
-    incorrectAnswers: 0,
-    f1Score: 0,
-    precision: 0,
-    recall: 0,
-  };
+  const metrics = createMetricsObject();
+
+  const metricsByCategory: Record<string, CategoryMetrics> = {};
 
   for (let i = 0; i < locomoData.length; i++) {
     const conversation = locomoData[i] as ConversationData;
@@ -33,16 +56,51 @@ async function runSearchEvaluation() {
       continue;
     }
 
-    signale.info(`Found ${conversation.qa.length} questions`);
+    // Log categories for debugging
+    if (i === 0) {
+      const categories = [...new Set(conversation.qa.map((qa) => qa.category))];
+      signale.info(`Found categories in data: ${categories.join(", ")}`);
+    }
 
-    for (let j = 0; j < conversation.qa.length; j++) {
-      const qa = conversation.qa[j];
+    // Filter QA items by category if specified
+    const qaItems = categoryNumber
+      ? conversation.qa.filter((qa) => Number(qa.category) === categoryNumber)
+      : conversation.qa;
+
+    if (qaItems.length === 0) {
+      signale.info(
+        "No questions matching the specified category, skipping conversation..."
+      );
+      continue;
+    }
+
+    signale.info(
+      `Found ${qaItems.length} questions${
+        categoryNumber
+          ? ` in ${getCategoryName(categoryNumber.toString())}`
+          : ""
+      }`
+    );
+
+    for (let j = 0; j < qaItems.length; j++) {
+      const qa = qaItems[j];
       const questionIndex = metrics.totalQuestions + 1;
       metrics.totalQuestions++;
 
+      // Get category name
+      const categoryName = getCategoryName(qa.category.toString());
+
+      // Initialize category metrics if needed
+      if (!metricsByCategory[categoryName]) {
+        metricsByCategory[categoryName] = createMetricsObject();
+      }
+
+      // Update question count for this category
+      metricsByCategory[categoryName].totalQuestions++;
+
       signale.info(`\n--- Q${questionIndex} ---`);
       signale.info(`Question: ${qa.question}`);
-      signale.info(`Category: ${qa.category}`);
+      signale.info(`Category: ${categoryName} (${qa.category})`);
       signale.info(`Ground Truth Answer: ${qa.answer}`);
 
       //  --------------------------------
@@ -71,72 +129,52 @@ async function runSearchEvaluation() {
         qa.answer
       );
 
-      // Update metrics
+      // Calculate BLEU-1 score
+      const bleu1Score = calculateBleu1(generatedAnswer, qa.answer);
+
+      // Update overall metrics
       metrics.f1Score += f1Score;
       metrics.precision += precision;
       metrics.recall += recall;
+      metrics.bleu1Score += bleu1Score;
+
+      // Update category-specific metrics
+      metricsByCategory[categoryName].f1Score += f1Score;
+      metricsByCategory[categoryName].precision += precision;
+      metricsByCategory[categoryName].recall += recall;
+      metricsByCategory[categoryName].bleu1Score += bleu1Score;
 
       // Classify answer quality
       if (f1Score > 0.8) {
         metrics.correctAnswers++;
+        metricsByCategory[categoryName].correctAnswers++;
         signale.success("Result: CORRECT");
       } else if (f1Score > 0.3) {
         metrics.partialAnswers++;
+        metricsByCategory[categoryName].partialAnswers++;
         signale.warn("Result: PARTIAL");
       } else {
         metrics.incorrectAnswers++;
+        metricsByCategory[categoryName].incorrectAnswers++;
         signale.error("Result: INCORRECT");
       }
 
       signale.info(`F1 Score: ${(f1Score * 100).toFixed(2)}%`);
+      signale.info(`BLEU-1 Score: ${(bleu1Score * 100).toFixed(2)}%`);
       signale.info(`Precision: ${(precision * 100).toFixed(2)}%`);
       signale.info(`Recall: ${(recall * 100).toFixed(2)}%`);
       signale.info(`--- End Q${questionIndex} ---`);
     }
   }
 
-  signale.info("\n===== FINAL EVALUATION RESULTS =====");
-  signale.info(`Total Questions Evaluated: ${metrics.totalQuestions}`);
-  signale.info(
-    `Correct Answers: ${metrics.correctAnswers} (${(
-      (metrics.correctAnswers / metrics.totalQuestions) *
-      100
-    ).toFixed(2)}%)`
-  );
-  signale.info(
-    `Partial Answers: ${metrics.partialAnswers} (${(
-      (metrics.partialAnswers / metrics.totalQuestions) *
-      100
-    ).toFixed(2)}%)`
-  );
-  signale.info(
-    `Incorrect Answers: ${metrics.incorrectAnswers} (${(
-      (metrics.incorrectAnswers / metrics.totalQuestions) *
-      100
-    ).toFixed(2)}%)`
-  );
-  signale.info(
-    `Average F1 Score: ${(
-      (metrics.f1Score / metrics.totalQuestions) *
-      100
-    ).toFixed(2)}%`
-  );
-  signale.info(
-    `Average Precision: ${(
-      (metrics.precision / metrics.totalQuestions) *
-      100
-    ).toFixed(2)}%`
-  );
-  signale.info(
-    `Average Recall: ${(
-      (metrics.recall / metrics.totalQuestions) *
-      100
-    ).toFixed(2)}%`
-  );
-  signale.info("====================================");
+  // Display results and export to CSV using the results.ts module
+  displayAndExportResults(metricsByCategory);
 }
 
-runSearchEvaluation().catch((error) => {
+// Get the target category from command line arguments if provided
+const targetCategory = process.argv[2];
+
+runSearchEvaluation(targetCategory).catch((error) => {
   signale.error("Error during search evaluation:", error);
   process.exit(1);
 });

@@ -6,6 +6,10 @@
     "run-eval": "bun run src/index.ts",
     "load": "bun run src/load.ts",
     "search": "bun run src/evaluation/search/search.ts",
+    "s-s": "bun run src/evaluation/search/search.ts single-hop",
+    "s-m": "bun run src/evaluation/search/search.ts multi-hop",
+    "s-t": "bun run src/evaluation/search/search.ts temporal",
+    "s-o": "bun run src/evaluation/search/search.ts open-domain",
     "delete-mems": "bun run src/delete-memories.ts"
   },
   "devDependencies": {

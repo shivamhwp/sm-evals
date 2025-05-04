@@ -1,12 +1,9 @@
-import signale from "../../utils/logger";
 import { getCosineSimilarity } from "../search/searchUtils";
 
 export async function calculatePrecisionRecall(
   generated: string,
   groundTruth: string
 ) {
-  signale.info(`comparing the response with the ground truth`);
-
   // Get cosine similarity from utils
   const overallSimilarity = await getCosineSimilarity(generated, groundTruth);
 
@@ -19,7 +16,7 @@ export async function calculatePrecisionRecall(
     .split(/\s+/)
     .filter(Boolean);
 
-  // For exact matching words (e.g., names, dates, numbers)
+  // if words are exactly same then let's fking go
   const exactMatches = new Set<string>();
   truthTokensArray.forEach((truthToken) => {
     if (genTokensArray.includes(truthToken)) {
@@ -78,7 +75,6 @@ export async function calculatePrecisionRecall(
     // Adjust match threshold based on overall sentence similarity
     // If sentences are very similar, we can be more lenient with token matching
     const adaptiveThreshold = 0.7 + overallSimilarity * 0.1; // 0.7-0.8 range
-
     if (bestScore > adaptiveThreshold) {
       genMatches++;
     }

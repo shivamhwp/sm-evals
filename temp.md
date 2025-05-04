@@ -8,8 +8,6 @@
 
 3. using standard metrics like ROGUE, BLEU and METEOR.
 
-4. implementing llm as a judge score
-
 ---
 
 ### resources on implementing referencing.
@@ -23,6 +21,8 @@
 3. source attribution and answer formatting.
 
 4. using nlp pipeline for metadata extraction using tools like [spacy](https://spacy.io) and making a synthesis engine that figures out entity linking , event resolution etc.
+
+   > we doing this.
 
 5. using knowledge graph can represent and query complex relationships.
 
