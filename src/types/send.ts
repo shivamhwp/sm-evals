@@ -9,20 +9,22 @@ export type ClassificationAverageStrategy =
   | "weighted"
   | "samples";
 
+export interface BleuData {
+  predictions: string[];
+  references: string[][];
+}
+
+export interface ClassificationData {
+  predictions: (string | number | boolean)[];
+  ground_truth: (string | number | boolean)[];
+  average: ClassificationAverageStrategy;
+  positive_label?: string | number | boolean;
+  labels?: (string | number | boolean)[];
+  zero_division?: 0 | 1 | "warn";
+}
+
 export interface MetricsServicePayload {
   metrics_to_calculate: MetricName[];
-
-  text_data?: {
-    predictions: string[];
-    references: string[][];
-  };
-
-  classification_data?: {
-    predictions: (string | number | boolean)[];
-    ground_truth: (string | number | boolean)[];
-    average: ClassificationAverageStrategy;
-    positive_label?: string | number | boolean;
-    labels?: (string | number | boolean)[];
-    zero_division?: 0 | 1 | "warn";
-  };
+  bleu_data?: BleuData;
+  classification_data?: ClassificationData;
 }
