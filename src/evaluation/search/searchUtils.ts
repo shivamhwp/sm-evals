@@ -1,40 +1,51 @@
 import { env } from "../../utils/config";
 import { createOpenAI } from "@ai-sdk/openai";
-import { cosineSimilarity, embed, generateText } from "ai";
+import { cosineSimilarity, embed, generateText, type Embedding } from "ai";
 import signale from "../../utils/logger";
 
 const openai = createOpenAI({
   apiKey: env.openaiApiKey,
 });
 
-export async function getCosineSimilarity(
-  generated: string | number,
-  groundTruth: string | number
-) {
-  // Convert inputs to strings and handle empty strings
-  const generatedStr = String(generated).trim();
-  const groundTruthStr = String(groundTruth).trim();
+// ----------------------------------------------
+// 👇 get embedding from the text
+// ----------------------------------------------
 
-  // Return 0 similarity if either string is empty
-  if (!generatedStr || !groundTruthStr) {
-    signale.debug("Empty strings provided", generatedStr, groundTruthStr);
-    return 0;
+export async function getEmbedding(
+  text: string | number
+): Promise<Embedding | null> {
+  const textStr = String(text).trim();
+  if (!textStr) {
+    signale.debug("Empty string provided for embedding");
+    return null; // Return null for empty input
   }
 
-  const model = openai.textEmbeddingModel("text-embedding-3-small");
-
-  const embedding1 = await embed({
-    model,
-    value: generatedStr,
-  });
-
-  const embedding2 = await embed({
-    model,
-    value: groundTruthStr,
-  });
-
-  return cosineSimilarity(embedding1.embedding, embedding2.embedding);
+  try {
+    const model = openai.textEmbeddingModel("text-embedding-3-small");
+    const result = await embed({ model, value: textStr });
+    return result.embedding;
+  } catch (error) {
+    signale.error("Error getting embedding:", error);
+    return null; // Return null on error
+  }
 }
+
+export function calculateCosineSimilarityFromEmbeddings(
+  embedding1: Embedding | null,
+  embedding2: Embedding | null
+): number {
+  // Handle cases where embeddings could not be generated
+  if (!embedding1 || !embedding2) {
+    signale.debug("Cannot calculate similarity with null embeddings");
+    return 0;
+  }
+  // The cosineSimilarity function expects number[]
+  return cosineSimilarity(embedding1, embedding2);
+}
+
+// ----------------------------------------------
+// 👇 generate answer from the retrieved results from the supermemory
+// ----------------------------------------------
 
 export async function generateAnswer(question: string, context: string[]) {
   const systemInstruction = `

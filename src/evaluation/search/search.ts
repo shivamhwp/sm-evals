@@ -1,6 +1,10 @@
 import { locomoData } from "../../utils/config";
 import { searchMemories } from "../../api/supermemory";
-import { generateAnswer } from "./searchUtils";
+import {
+  generateAnswer,
+  getEmbedding,
+  calculateCosineSimilarityFromEmbeddings,
+} from "./searchUtils";
 import type { ConversationData } from "../../types/locomo";
 import { calculatePrecisionRecall } from "../metrics/precisionRecall";
 import { calculateAnswerF1 } from "../metrics/f1";
@@ -9,6 +13,10 @@ import signale from "../../utils/logger";
 import { createMetricsObject, displayAndExportResults } from "../results";
 import type { CategoryMetrics } from "../results";
 import { getCategoryName, CATEGORY_ID_MAPPING } from "../../utils/getCategory";
+
+const SEARCH_RESULT_LIMIT = 3;
+const QA_MODEL_NAME = "o4-mini-2025-04-16";
+const EMBEDDING_MODEL_NAME = "text-embedding-3-small";
 
 async function runSearchEvaluation(targetCategory?: string) {
   // If targetCategory is provided, validate and convert to category ID
@@ -107,29 +115,53 @@ async function runSearchEvaluation(targetCategory?: string) {
 
       const searchParams = {
         q: qa.question,
-        limit: 3,
+        limit: SEARCH_RESULT_LIMIT,
         filter: { sample_id: conversation.sample_id },
       };
 
       //  --------------------------------
 
       const searchResponse = await searchMemories(searchParams);
-      const resultContents = searchResponse.results.map(
-        (r) => r.chunks[0].content
+      const resultContents = searchResponse.results.map((r) =>
+        r.chunks.map((c) => c.content).join("\n")
       );
 
       // Generate answer using the retrieved content
       const generatedAnswer = await generateAnswer(qa.question, resultContents);
       signale.info(`Generated Answer: ${generatedAnswer}`);
 
-      // Calculate F1 score
-      const f1Score = await calculateAnswerF1(generatedAnswer, qa.answer);
-      const { precision, recall } = await calculatePrecisionRecall(
-        generatedAnswer,
-        qa.answer
+      // Inside the question loop in search.ts, after getting generatedAnswer
+      const isExactMatch =
+        String(generatedAnswer).trim() === String(qa.answer).trim();
+      signale.info(`Exact Match: ${isExactMatch}`);
+
+      // --- Optimization Start ---
+      // 1. Get embeddings ONCE
+      const genEmb = await getEmbedding(generatedAnswer);
+      const truthEmb = await getEmbedding(qa.answer);
+
+      // 2. Calculate similarity ONCE
+      const similarityScore = calculateCosineSimilarityFromEmbeddings(
+        genEmb,
+        truthEmb
+      );
+      // --- Optimization End ---
+
+      // Calculate F1 score using the pre-calculated similarity and original strings
+      const f1Score = await calculateAnswerF1(
+        generatedAnswer, // Pass original string
+        qa.answer, // Pass original string
+        similarityScore // Pass pre-calculated score
       );
 
-      // Calculate BLEU-1 score
+      // Calculate Precision/Recall PASSING the score AND original strings
+      const { precision, recall } = await calculatePrecisionRecall(
+        generatedAnswer, // Pass original string
+        qa.answer, // Pass original string
+        similarityScore // Pass pre-calculated score
+      );
+
+      // Calculate BLEU-1 score (no change needed, it's local)
       const bleu1Score = calculateBleu1(generatedAnswer, qa.answer);
 
       // Update overall metrics
@@ -145,7 +177,8 @@ async function runSearchEvaluation(targetCategory?: string) {
       metricsByCategory[categoryName].bleu1Score += bleu1Score;
 
       // Classify answer quality
-      if (f1Score > 0.8) {
+      if (isExactMatch || f1Score > 0.8) {
+        // Consider exact match as correct
         metrics.correctAnswers++;
         metricsByCategory[categoryName].correctAnswers++;
         signale.success("Result: CORRECT");
