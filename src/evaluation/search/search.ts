@@ -1,88 +1,104 @@
 import { locomoData } from "../../utils/config";
 import { searchMemories } from "../../api/supermemory";
-import {
-  generateAnswer,
-  getEmbedding,
-  calculateCosineSimilarityFromEmbeddings,
-} from "./searchUtils";
+import { generateAnswer } from "./searchUtils";
 import type { ConversationData } from "../../types/locomo";
-import { calculatePrecisionRecall } from "../metrics/precisionRecall";
-import { calculateAnswerF1 } from "../metrics/f1";
-import { calculateBleu1 } from "../metrics/bleu";
-import signale from "../../utils/logger";
 import { createMetricsObject, displayAndExportResults } from "../results";
 import type { CategoryMetrics } from "../results";
 import { getCategoryName, CATEGORY_ID_MAPPING } from "../../utils/getCategory";
+import {
+  calculateSemanticSimilarity,
+  calculateSemanticMetrics,
+} from "./semanticMetrics";
 
-const SEARCH_RESULT_LIMIT = 3;
-const QA_MODEL_NAME = "o4-mini-2025-04-16";
-const EMBEDDING_MODEL_NAME = "text-embedding-3-small";
+//==================================================
+//========== Search Evaluation Configuration =======
+//==================================================
+
+const SUPERMEMORY_SEARCH_RESULT_LIMIT = 3;
+const SIMILARITY_CORRECT_THRESHOLD = 0.85;
+const SIMILARITY_PARTIAL_THRESHOLD = 0.7;
+
+//==================================================
+
+//==================================================
+//========== Search Evaluation Function ===========
+//==================================================
 
 async function runSearchEvaluation(targetCategory?: string) {
-  // If targetCategory is provided, validate and convert to category ID
   let categoryId: number | undefined;
   let categoryNumber: number | undefined;
 
   if (targetCategory) {
     categoryId = CATEGORY_ID_MAPPING[targetCategory.toLowerCase()];
     if (!categoryId) {
-      signale.error(`Invalid category: ${targetCategory}`);
-      signale.info(
+      console.error(`Invalid category: ${targetCategory}`);
+      console.info(
         "Available categories: single-hop, multi-hop, open-domain, temporal, adversarial"
       );
       process.exit(1);
     }
     categoryNumber = categoryId;
 
-    signale.info(
+    console.info(
       `Running Supermemory search evaluation on Locomo QA for ${getCategoryName(
         categoryId.toString()
       )} questions...`
     );
   } else {
-    signale.info(
+    console.info(
       "Running Supermemory search evaluation on all Locomo QA questions..."
     );
   }
 
-  signale.info(`Found ${locomoData.length} conversations`);
+  console.info(`Found ${locomoData.length} conversations`);
 
   const metrics = createMetricsObject();
+  metrics.semanticCorrect = 0;
+  metrics.semanticPartial = 0;
+  metrics.semanticIncorrect = 0;
+  metrics.averageSimilarity = 0;
+
+  // Set unused metrics to 0 to prevent NaN in reports
+  metrics.f1Score = 0;
+  metrics.precision = 0;
+  metrics.recall = 0;
+  metrics.bleu1Score = 0;
 
   const metricsByCategory: Record<string, CategoryMetrics> = {};
 
+  const allGeneratedAnswers: string[] = [];
+  const allGroundTruthAnswers: string[] = [];
+
   for (let i = 0; i < locomoData.length; i++) {
     const conversation = locomoData[i] as ConversationData;
-    signale.info(
+    console.info(
       `\nEvaluating conversation ${i + 1}/${locomoData.length} (${
         conversation.sample_id
       })`
     );
 
     if (!conversation.qa || conversation.qa.length === 0) {
-      signale.warn("No QA data found, skipping...");
+      console.warn("No QA data found, skipping...");
       continue;
     }
 
-    // Log categories for debugging
     if (i === 0) {
       const categories = [...new Set(conversation.qa.map((qa) => qa.category))];
-      signale.info(`Found categories in data: ${categories.join(", ")}`);
+      console.info(`Found categories in data: ${categories.join(", ")}`);
     }
 
-    // Filter QA items by category if specified
     const qaItems = categoryNumber
       ? conversation.qa.filter((qa) => Number(qa.category) === categoryNumber)
       : conversation.qa;
 
     if (qaItems.length === 0) {
-      signale.info(
+      console.info(
         "No questions matching the specified category, skipping conversation..."
       );
       continue;
     }
 
-    signale.info(
+    console.info(
       `Found ${qaItems.length} questions${
         categoryNumber
           ? ` in ${getCategoryName(categoryNumber.toString())}`
@@ -90,124 +106,148 @@ async function runSearchEvaluation(targetCategory?: string) {
       }`
     );
 
+    // Process each conversation's search queries in a single batch if possible
     for (let j = 0; j < qaItems.length; j++) {
       const qa = qaItems[j];
       const questionIndex = metrics.totalQuestions + 1;
       metrics.totalQuestions++;
 
-      // Get category name
       const categoryName = getCategoryName(qa.category.toString());
 
-      // Initialize category metrics if needed
+      // Ensure category metrics object exists
       if (!metricsByCategory[categoryName]) {
         metricsByCategory[categoryName] = createMetricsObject();
+        // Since createMetricsObject() initializes all semantic metrics to 0,
+        // TypeScript should know they're not undefined, but we'll explicitly assert this
+        metricsByCategory[categoryName].semanticCorrect = 0;
+        metricsByCategory[categoryName].semanticPartial = 0;
+        metricsByCategory[categoryName].semanticIncorrect = 0;
+        metricsByCategory[categoryName].averageSimilarity = 0;
       }
 
-      // Update question count for this category
-      metricsByCategory[categoryName].totalQuestions++;
+      // Safe reference to the category metrics
+      const categoryMetrics = metricsByCategory[categoryName];
+      categoryMetrics.totalQuestions++;
 
-      signale.info(`\n--- Q${questionIndex} ---`);
-      signale.info(`Question: ${qa.question}`);
-      signale.info(`Category: ${categoryName} (${qa.category})`);
-      signale.info(`Ground Truth Answer: ${qa.answer}`);
-
-      //  --------------------------------
+      console.info(`\n--- Q${questionIndex} ---`);
+      console.info(`Question: ${qa.question}`);
+      console.info(`Category: ${categoryName} (${qa.category})`);
+      console.info(`Ground Truth Answer: ${qa.answer}`);
 
       const searchParams = {
         q: qa.question,
-        limit: SEARCH_RESULT_LIMIT,
+        limit: SUPERMEMORY_SEARCH_RESULT_LIMIT,
         filter: { sample_id: conversation.sample_id },
       };
 
-      //  --------------------------------
-
+      // Only two API calls per question: search and answer generation
       const searchResponse = await searchMemories(searchParams);
       const resultContents = searchResponse.results.map((r) =>
         r.chunks.map((c) => c.content).join("\n")
       );
 
-      // Generate answer using the retrieved content
       const generatedAnswer = await generateAnswer(qa.question, resultContents);
-      signale.info(`Generated Answer: ${generatedAnswer}`);
+      console.info(`Generated Answer: ${generatedAnswer}`);
 
-      // Inside the question loop in search.ts, after getting generatedAnswer
+      allGeneratedAnswers.push(generatedAnswer);
+      allGroundTruthAnswers.push(qa.answer);
+
       const isExactMatch =
         String(generatedAnswer).trim() === String(qa.answer).trim();
-      signale.info(`Exact Match: ${isExactMatch}`);
+      console.info(`Exact Match: ${isExactMatch}`);
 
-      // --- Optimization Start ---
-      // 1. Get embeddings ONCE
-      const genEmb = await getEmbedding(generatedAnswer);
-      const truthEmb = await getEmbedding(qa.answer);
-
-      // 2. Calculate similarity ONCE
-      const similarityScore = calculateCosineSimilarityFromEmbeddings(
-        genEmb,
-        truthEmb
+      // Calculate semantic similarity - this is now our primary metric
+      // This uses cached embeddings, so no additional API calls are made
+      const similarity = await calculateSemanticSimilarity(
+        generatedAnswer,
+        qa.answer
       );
-      // --- Optimization End ---
+      console.info(`Semantic Similarity: ${(similarity * 100).toFixed(2)}%`);
 
-      // Calculate F1 score using the pre-calculated similarity and original strings
-      const f1Score = await calculateAnswerF1(
-        generatedAnswer, // Pass original string
-        qa.answer, // Pass original string
-        similarityScore // Pass pre-calculated score
-      );
+      // Update metrics
+      metrics.averageSimilarity += similarity;
+      categoryMetrics.averageSimilarity! += similarity;
 
-      // Calculate Precision/Recall PASSING the score AND original strings
-      const { precision, recall } = await calculatePrecisionRecall(
-        generatedAnswer, // Pass original string
-        qa.answer, // Pass original string
-        similarityScore // Pass pre-calculated score
-      );
-
-      // Calculate BLEU-1 score (no change needed, it's local)
-      const bleu1Score = calculateBleu1(generatedAnswer, qa.answer);
-
-      // Update overall metrics
-      metrics.f1Score += f1Score;
-      metrics.precision += precision;
-      metrics.recall += recall;
-      metrics.bleu1Score += bleu1Score;
-
-      // Update category-specific metrics
-      metricsByCategory[categoryName].f1Score += f1Score;
-      metricsByCategory[categoryName].precision += precision;
-      metricsByCategory[categoryName].recall += recall;
-      metricsByCategory[categoryName].bleu1Score += bleu1Score;
-
-      // Classify answer quality
-      if (isExactMatch || f1Score > 0.8) {
-        // Consider exact match as correct
+      // Classify answers based on semantic similarity threshold
+      if (isExactMatch || similarity >= SIMILARITY_CORRECT_THRESHOLD) {
+        metrics.semanticCorrect++;
         metrics.correctAnswers++;
-        metricsByCategory[categoryName].correctAnswers++;
-        signale.success("Result: CORRECT");
-      } else if (f1Score > 0.3) {
+        categoryMetrics.semanticCorrect!++;
+        categoryMetrics.correctAnswers++;
+        console.log("Result: CORRECT");
+      } else if (similarity >= SIMILARITY_PARTIAL_THRESHOLD) {
+        metrics.semanticPartial++;
         metrics.partialAnswers++;
-        metricsByCategory[categoryName].partialAnswers++;
-        signale.warn("Result: PARTIAL");
+        categoryMetrics.semanticPartial!++;
+        categoryMetrics.partialAnswers++;
+        console.warn("Result: PARTIAL");
       } else {
+        metrics.semanticIncorrect++;
         metrics.incorrectAnswers++;
-        metricsByCategory[categoryName].incorrectAnswers++;
-        signale.error("Result: INCORRECT");
+        categoryMetrics.semanticIncorrect!++;
+        categoryMetrics.incorrectAnswers++;
+        console.error("Result: INCORRECT");
       }
 
-      signale.info(`F1 Score: ${(f1Score * 100).toFixed(2)}%`);
-      signale.info(`BLEU-1 Score: ${(bleu1Score * 100).toFixed(2)}%`);
-      signale.info(`Precision: ${(precision * 100).toFixed(2)}%`);
-      signale.info(`Recall: ${(recall * 100).toFixed(2)}%`);
-      signale.info(`--- End Q${questionIndex} ---`);
+      console.info(`--- End Q${questionIndex} ---`);
     }
   }
 
-  // Display results and export to CSV using the results.ts module
+  if (allGeneratedAnswers.length > 0) {
+    console.info("\n=== Aggregate Semantic Metrics ===");
+    // This uses cached embeddings, so no additional API calls
+    const semanticMetrics = await calculateSemanticMetrics(
+      allGeneratedAnswers,
+      allGroundTruthAnswers,
+      SIMILARITY_CORRECT_THRESHOLD
+    );
+
+    // Use the precision, recall, and F1 scores from semantic metrics
+    metrics.precision = semanticMetrics.precision;
+    metrics.recall = semanticMetrics.recall;
+    metrics.f1Score = semanticMetrics.f1Score;
+
+    console.info(
+      `Semantic Precision: ${(semanticMetrics.precision * 100).toFixed(2)}%`
+    );
+    console.info(
+      `Semantic Recall: ${(semanticMetrics.recall * 100).toFixed(2)}%`
+    );
+    console.info(
+      `Semantic F1 Score: ${(semanticMetrics.f1Score * 100).toFixed(2)}%`
+    );
+    console.info(
+      `Average Similarity: ${(semanticMetrics.averageSimilarity * 100).toFixed(
+        2
+      )}%`
+    );
+    console.info(`True Positives: ${semanticMetrics.truePositives}`);
+    console.info(`False Positives: ${semanticMetrics.falsePositives}`);
+    console.info(`True Negatives: ${semanticMetrics.trueNegatives}`);
+    console.info(`False Negatives: ${semanticMetrics.falseNegatives}`);
+    console.info("=====================================");
+  }
+
+  if (metrics.totalQuestions > 0) {
+    metrics.averageSimilarity /= metrics.totalQuestions;
+
+    // Use Object.entries to safely access category metrics
+    for (const [, categoryMetrics] of Object.entries(metricsByCategory)) {
+      if (
+        categoryMetrics.totalQuestions > 0 &&
+        categoryMetrics.averageSimilarity !== undefined
+      ) {
+        categoryMetrics.averageSimilarity /= categoryMetrics.totalQuestions;
+      }
+    }
+  }
+
   displayAndExportResults(metricsByCategory);
 }
 
-// Get the target category from command line arguments if provided
 const targetCategory = process.argv[2];
 
 runSearchEvaluation(targetCategory).catch((error) => {
-  signale.error("Error during search evaluation:", error);
+  console.error("Error during search evaluation:", error);
   process.exit(1);
 });

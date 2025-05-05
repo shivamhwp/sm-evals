@@ -1,10 +1,6 @@
 import { config } from "dotenv";
 import fs from "fs";
 import path from "path";
-import signale from "./logger";
-
-// Create a basic signale instance for this file
-// We can't import from logger.ts as that would create a circular dependency
 
 // Load environment variables from .env file
 config();
@@ -17,8 +13,8 @@ function validateEnv() {
   const supermemoryApiUrl = process.env.SUPERMEMORY_API_URL;
 
   if (!apiKey) {
-    signale.warn("Warning: SUPERMEMORY_API_KEY is not set in .env file");
-    signale.warn(
+    console.warn("Warning: SUPERMEMORY_API_KEY is not set in .env file");
+    console.warn(
       "Please set up your API key in a .env file to use the API features"
     );
     // Return a placeholder value for development
@@ -31,10 +27,10 @@ function validateEnv() {
   }
 
   if (!googleApiKey) {
-    signale.warn(
+    console.warn(
       "Warning: GOOGLE_GENERATIVE_AI_API_KEY is not set in .env file"
     );
-    signale.warn(
+    console.warn(
       "Please set up your Google API key in a .env file to use the answer generation features"
     );
   }
@@ -59,7 +55,7 @@ function readLocomoDataset() {
     const jsonData = fs.readFileSync(dataPath, "utf-8");
     return JSON.parse(jsonData);
   } catch (error) {
-    signale.error("Error reading Locomo dataset:", error);
+    console.error("Error reading Locomo dataset:", error);
     // Return empty array for development if data not available
     return [];
   }

@@ -1,33 +1,79 @@
 import { env } from "../../utils/config";
 import { createOpenAI } from "@ai-sdk/openai";
 import { cosineSimilarity, embed, generateText, type Embedding } from "ai";
-import signale from "../../utils/logger";
+
+const QA_MODEL_NAME = "o4-mini-2025-04-16";
+const EMBEDDING_MODEL_NAME = "text-embedding-3-small";
 
 const openai = createOpenAI({
   apiKey: env.openaiApiKey,
 });
 
+// Cache for embeddings to avoid redundant API calls
+const embeddingCache = new Map<string, Embedding | null>();
+
 // ----------------------------------------------
-// 👇 get embedding from the text
+// 👇 get embeddings from multiple texts in a single batch
 // ----------------------------------------------
 
+export async function getBatchEmbeddings(
+  texts: string[]
+): Promise<(Embedding | null)[]> {
+  const uniqueTexts = [...new Set(texts)].filter((text) => text);
+  const uncachedTexts: string[] = [];
+
+  // Check which texts need embeddings
+  uniqueTexts.forEach((text) => {
+    if (!embeddingCache.has(text)) {
+      uncachedTexts.push(text);
+    }
+  });
+
+  // Make a single API call for all uncached texts
+  if (uncachedTexts.length > 0) {
+    try {
+      const model = openai.textEmbeddingModel(EMBEDDING_MODEL_NAME);
+
+      // Process each text individually but in a single batch
+      const embedPromises = uncachedTexts.map((text) =>
+        embed({ model, value: text })
+      );
+
+      const results = await Promise.all(embedPromises);
+
+      // Store results in cache
+      uncachedTexts.forEach((text, i) => {
+        embeddingCache.set(text, results[i].embedding);
+      });
+    } catch (error) {
+      console.error("Error getting batch embeddings:", error);
+      // Set failed embeddings to null in cache
+      uncachedTexts.forEach((text) => {
+        embeddingCache.set(text, null);
+      });
+    }
+  }
+
+  // Return embeddings for all requested texts
+  return texts.map((text) => embeddingCache.get(text) || null);
+}
+
+// For backward compatibility - fetch from cache or generate single embedding
 export async function getEmbedding(
   text: string | number
 ): Promise<Embedding | null> {
   const textStr = String(text).trim();
   if (!textStr) {
-    signale.debug("Empty string provided for embedding");
-    return null; // Return null for empty input
+    console.debug("Empty string provided for embedding");
+    return null;
   }
 
-  try {
-    const model = openai.textEmbeddingModel("text-embedding-3-small");
-    const result = await embed({ model, value: textStr });
-    return result.embedding;
-  } catch (error) {
-    signale.error("Error getting embedding:", error);
-    return null; // Return null on error
+  if (embeddingCache.has(textStr)) {
+    return embeddingCache.get(textStr)!;
   }
+
+  const [embedding] = await getBatchEmbeddings([textStr]);
+  return embedding;
 }
 
 export function calculateCosineSimilarityFromEmbeddings(
@@ -36,7 +82,7 @@ export function calculateCosineSimilarityFromEmbeddings(
 ): number {
   // Handle cases where embeddings could not be generated
   if (!embedding1 || !embedding2) {
-    signale.debug("Cannot calculate similarity with null embeddings");
+    console.debug("Cannot calculate similarity with null embeddings");
     return 0;
   }
   // The cosineSimilarity function expects number[]
@@ -75,7 +121,7 @@ Answer:
 
   try {
     const result = await generateText({
-      model: openai("o4-mini-2025-04-16"),
+      model: openai(QA_MODEL_NAME),
       messages: [
         {
           role: "system",
@@ -95,7 +141,7 @@ Answer:
 
     return result.text.toString();
   } catch (error) {
-    signale.error("Error generating answer:", error);
+    console.error("Error generating answer:", error);
     return "Error generating answer";
   }
 }

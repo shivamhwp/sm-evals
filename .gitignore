@@ -11,8 +11,15 @@ lerna-debug.log*
 .pnpm-debug.log*
 
 
+
+
 node_modules
 # Caches
+
+py-metrics/src/__pycache__
+py-metrics/src/py_metrics/__pycache__
+py-metrics/src/py_metrics/types/__pycache__
+*/__pycache__/*
 
 .cache
 

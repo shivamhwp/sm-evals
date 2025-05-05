@@ -69,23 +69,3 @@ export async function getMetrics(
     throw error;
   }
 }
-
-async function getMetricsExample() {
-  const sampleGenerated = ["The cat sat on the mat."];
-  const sampleGroundTruth = ["The cat was on the mat."];
-
-  const payload = createMetricsPayload(sampleGenerated, sampleGroundTruth);
-
-  try {
-    console.log("Requesting metrics...");
-    const metrics = await getMetrics(payload);
-    console.log("Metrics received:", metrics);
-  } catch (error) {
-    console.error("Failed to get metrics:", error);
-  }
-}
-
-// Only run the example if the script is executed directly
-if (import.meta.main) {
-  getMetricsExample();
-}

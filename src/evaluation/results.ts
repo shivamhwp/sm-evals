@@ -1,4 +1,3 @@
-import signale from "../utils/logger";
 import fs from "fs";
 import path from "path";
 
@@ -12,51 +11,64 @@ export interface CategoryMetrics {
   precision: number;
   recall: number;
   bleu1Score: number;
+  // Add semantic metrics properties
+  semanticCorrect?: number;
+  semanticPartial?: number;
+  semanticIncorrect?: number;
+  averageSimilarity?: number;
 }
 
 /**
  * Display overall metrics in the terminal
  */
 export function displayOverallMetrics(metrics: CategoryMetrics): void {
-  signale.info("\n===== FINAL EVALUATION RESULTS =====");
-  signale.info(`Total Questions Evaluated: ${metrics.totalQuestions}`);
-  signale.info(
+  console.info("\n===== FINAL EVALUATION RESULTS =====");
+  console.info(`Total Questions Evaluated: ${metrics.totalQuestions}`);
+  console.info(
     `Correct Answers: ${metrics.correctAnswers} (${(
       (metrics.correctAnswers / metrics.totalQuestions) *
       100
     ).toFixed(2)}%)`
   );
-  signale.info(
+  console.info(
     `Partial Answers: ${metrics.partialAnswers} (${(
       (metrics.partialAnswers / metrics.totalQuestions) *
       100
     ).toFixed(2)}%)`
   );
-  signale.info(
+  console.info(
     `Incorrect Answers: ${metrics.incorrectAnswers} (${(
       (metrics.incorrectAnswers / metrics.totalQuestions) *
       100
     ).toFixed(2)}%)`
   );
-  signale.info(
+  // Add semantic similarity info if available
+  if (metrics.averageSimilarity !== undefined) {
+    console.info(
+      `Average Semantic Similarity: ${(metrics.averageSimilarity * 100).toFixed(
+        2
+      )}%`
+    );
+  }
+  console.info(
     `Average F1 Score: ${(
       (metrics.f1Score / metrics.totalQuestions) *
       100
     ).toFixed(2)}%`
   );
-  signale.info(
+  console.info(
     `Average BLEU-1 Score: ${(
       (metrics.bleu1Score / metrics.totalQuestions) *
       100
     ).toFixed(2)}%`
   );
-  signale.info(
+  console.info(
     `Average Precision: ${(
       (metrics.precision / metrics.totalQuestions) *
       100
     ).toFixed(2)}%`
   );
-  signale.info(
+  console.info(
     `Average Recall: ${(
       (metrics.recall / metrics.totalQuestions) *
       100
@@ -70,47 +82,84 @@ export function displayOverallMetrics(metrics: CategoryMetrics): void {
 export function displayCategoryMetrics(
   metricsByCategory: Record<string, CategoryMetrics>
 ): void {
-  signale.info("\n===== RESULTS BY QUESTION TYPE =====");
+  console.info("\n===== RESULTS BY QUESTION TYPE =====");
   Object.entries(metricsByCategory).forEach(([category, categoryMetrics]) => {
     const count = categoryMetrics.totalQuestions;
     if (count === 0) return; // Skip categories with no questions
 
-    signale.info(`\n--- ${category} (${count} questions) ---`);
-    signale.info(
+    console.info(`\n--- ${category} (${count} questions) ---`);
+    console.info(
       `Correct Answers: ${categoryMetrics.correctAnswers} (${(
         (categoryMetrics.correctAnswers / count) *
         100
       ).toFixed(2)}%)`
     );
-    signale.info(
+    console.info(
       `Partial Answers: ${categoryMetrics.partialAnswers} (${(
         (categoryMetrics.partialAnswers / count) *
         100
       ).toFixed(2)}%)`
     );
-    signale.info(
+    console.info(
       `Incorrect Answers: ${categoryMetrics.incorrectAnswers} (${(
         (categoryMetrics.incorrectAnswers / count) *
         100
       ).toFixed(2)}%)`
     );
-    signale.info(
+
+    // Display semantic metrics if available
+    if (categoryMetrics.averageSimilarity !== undefined) {
+      console.info(
+        `Average Semantic Similarity: ${(
+          categoryMetrics.averageSimilarity * 100
+        ).toFixed(2)}%`
+      );
+    }
+
+    if (categoryMetrics.semanticCorrect !== undefined) {
+      console.info(
+        `Semantic Correct: ${categoryMetrics.semanticCorrect} (${(
+          (categoryMetrics.semanticCorrect / count) *
+          100
+        ).toFixed(2)}%)`
+      );
+    }
+
+    if (categoryMetrics.semanticPartial !== undefined) {
+      console.info(
+        `Semantic Partial: ${categoryMetrics.semanticPartial} (${(
+          (categoryMetrics.semanticPartial / count) *
+          100
+        ).toFixed(2)}%)`
+      );
+    }
+
+    if (categoryMetrics.semanticIncorrect !== undefined) {
+      console.info(
+        `Semantic Incorrect: ${categoryMetrics.semanticIncorrect} (${(
+          (categoryMetrics.semanticIncorrect / count) *
+          100
+        ).toFixed(2)}%)`
+      );
+    }
+
+    console.info(
       `Average F1 Score: ${((categoryMetrics.f1Score / count) * 100).toFixed(
         2
       )}%`
     );
-    signale.info(
+    console.info(
       `Average BLEU-1 Score: ${(
         (categoryMetrics.bleu1Score / count) *
         100
       ).toFixed(2)}%`
     );
-    signale.info(
+    console.info(
       `Average Precision: ${((categoryMetrics.precision / count) * 100).toFixed(
         2
       )}%`
     );
-    signale.info(
+    console.info(
       `Average Recall: ${((categoryMetrics.recall / count) * 100).toFixed(2)}%`
     );
   });
@@ -133,6 +182,10 @@ export function exportMetricsToCSV(
     "Correct Answers (%)",
     "Partial Answers (%)",
     "Incorrect Answers (%)",
+    "Average Similarity (%)",
+    "Semantic Correct (%)",
+    "Semantic Partial (%)",
+    "Semantic Incorrect (%)",
   ];
 
   const rows = Object.entries(metricsByCategory)
@@ -150,6 +203,19 @@ export function exportMetricsToCSV(
         ((metrics.correctAnswers / count) * 100).toFixed(2),
         ((metrics.partialAnswers / count) * 100).toFixed(2),
         ((metrics.incorrectAnswers / count) * 100).toFixed(2),
+        // Add semantic metrics
+        metrics.averageSimilarity !== undefined
+          ? (metrics.averageSimilarity * 100).toFixed(2)
+          : "N/A",
+        metrics.semanticCorrect !== undefined
+          ? ((metrics.semanticCorrect / count) * 100).toFixed(2)
+          : "N/A",
+        metrics.semanticPartial !== undefined
+          ? ((metrics.semanticPartial / count) * 100).toFixed(2)
+          : "N/A",
+        metrics.semanticIncorrect !== undefined
+          ? ((metrics.semanticIncorrect / count) * 100).toFixed(2)
+          : "N/A",
       ];
     })
     .filter(Boolean); // Remove nulls for empty categories
@@ -165,12 +231,43 @@ export function exportMetricsToCSV(
       acc.correctAnswers += metrics.correctAnswers;
       acc.partialAnswers += metrics.partialAnswers;
       acc.incorrectAnswers += metrics.incorrectAnswers;
+      // Add semantic metrics
+      if (
+        acc.semanticCorrect !== undefined &&
+        metrics.semanticCorrect !== undefined
+      ) {
+        acc.semanticCorrect += metrics.semanticCorrect;
+      }
+      if (
+        acc.semanticPartial !== undefined &&
+        metrics.semanticPartial !== undefined
+      ) {
+        acc.semanticPartial += metrics.semanticPartial;
+      }
+      if (
+        acc.semanticIncorrect !== undefined &&
+        metrics.semanticIncorrect !== undefined
+      ) {
+        acc.semanticIncorrect += metrics.semanticIncorrect;
+      }
+      if (
+        acc.averageSimilarity !== undefined &&
+        metrics.averageSimilarity !== undefined
+      ) {
+        acc.averageSimilarity +=
+          metrics.averageSimilarity * metrics.totalQuestions; // Weighted sum for accurate average
+      }
       return acc;
     },
     createMetricsObject()
   );
 
   if (overallMetrics.totalQuestions > 0) {
+    // Calculate the overall average similarity from the weighted sum
+    if (overallMetrics.averageSimilarity !== undefined) {
+      overallMetrics.averageSimilarity /= overallMetrics.totalQuestions;
+    }
+
     rows.push([
       "Overall",
       overallMetrics.totalQuestions,
@@ -200,6 +297,28 @@ export function exportMetricsToCSV(
         (overallMetrics.incorrectAnswers / overallMetrics.totalQuestions) *
         100
       ).toFixed(2),
+      // Add semantic metrics
+      overallMetrics.averageSimilarity !== undefined
+        ? (overallMetrics.averageSimilarity * 100).toFixed(2)
+        : "N/A",
+      overallMetrics.semanticCorrect !== undefined
+        ? (
+            (overallMetrics.semanticCorrect / overallMetrics.totalQuestions) *
+            100
+          ).toFixed(2)
+        : "N/A",
+      overallMetrics.semanticPartial !== undefined
+        ? (
+            (overallMetrics.semanticPartial / overallMetrics.totalQuestions) *
+            100
+          ).toFixed(2)
+        : "N/A",
+      overallMetrics.semanticIncorrect !== undefined
+        ? (
+            (overallMetrics.semanticIncorrect / overallMetrics.totalQuestions) *
+            100
+          ).toFixed(2)
+        : "N/A",
     ]);
   }
 
@@ -217,7 +336,7 @@ export function exportMetricsToCSV(
 
   // Write to file
   fs.writeFileSync(outputPath, csvContent);
-  signale.info(`Metrics exported to ${outputPath}`);
+  console.info(`Metrics exported to ${outputPath}`);
 }
 
 /**
@@ -233,6 +352,11 @@ export function createMetricsObject(): CategoryMetrics {
     precision: 0,
     recall: 0,
     bleu1Score: 0,
+    // Initialize semantic metrics fields
+    semanticCorrect: 0,
+    semanticPartial: 0,
+    semanticIncorrect: 0,
+    averageSimilarity: 0,
   };
 }
 
@@ -270,5 +394,5 @@ export function displayAndExportResults(
   );
   exportMetricsToCSV(metricsByCategory, outputPath);
 
-  signale.info("====================================");
+  console.info("====================================");
 }

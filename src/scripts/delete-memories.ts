@@ -1,14 +1,13 @@
 import fs from "fs";
 import path from "path";
 import { env } from "../utils/config";
-import signale from "../utils/logger";
 
 const API_BASE_URL = env.supermemoryApiUrl;
 const MEM_ID_FILE = path.join(process.cwd(), "src/data/mem-id.json");
 
 // Step 1: Fetch all memory IDs and save to file
 async function fetchAndSaveMemoryIds() {
-  signale.info("Fetching all memory IDs...");
+  console.info("Fetching all memory IDs...");
 
   try {
     const response = await fetch(`${API_BASE_URL}/memories`, {
@@ -27,18 +26,18 @@ async function fetchAndSaveMemoryIds() {
 
     // Save to file
     fs.writeFileSync(MEM_ID_FILE, JSON.stringify(memoryIds, null, 2));
-    signale.success(`Saved ${memoryIds.length} memory IDs to ${MEM_ID_FILE}`);
+    console.log(`Saved ${memoryIds.length} memory IDs to ${MEM_ID_FILE}`);
 
     return memoryIds;
   } catch (error) {
-    signale.error("Error fetching memory IDs:", error);
+    console.error("Error fetching memory IDs:", error);
     throw error;
   }
 }
 
 // Step 2: Delete memories using IDs from file
 async function deleteMemories() {
-  signale.info("Starting memory deletion process...");
+  console.info("Starting memory deletion process...");
 
   // Read memory IDs from file - directly as an array of strings
   let memoryIds: string[] = [];
@@ -52,7 +51,7 @@ async function deleteMemories() {
       try {
         memoryIds = JSON.parse(fileData);
       } catch (error) {
-        signale.error("Error parsing memory IDs file:", error);
+        console.error("Error parsing memory IDs file:", error);
         memoryIds = await fetchAndSaveMemoryIds();
       }
     } else {
@@ -65,11 +64,11 @@ async function deleteMemories() {
   }
 
   if (!Array.isArray(memoryIds) || memoryIds.length === 0) {
-    signale.warn("No memory IDs found to delete.");
+    console.warn("No memory IDs found to delete.");
     return;
   }
 
-  signale.info(`Found ${memoryIds.length} memories to delete`);
+  console.info(`Found ${memoryIds.length} memories to delete`);
 
   // Delete memories one by one
   let successCount = 0;
@@ -87,28 +86,26 @@ async function deleteMemories() {
 
       if (!response.ok) {
         const data = await response.json();
-        signale.debug(data);
+        console.debug(data);
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
 
       successCount++;
-      signale.success(
-        `Deleted memory ${i + 1}/${memoryIds.length} (ID: ${id})`
-      );
+      console.log(`Deleted memory ${i + 1}/${memoryIds.length} (ID: ${id})`);
     } catch (error) {
       failCount++;
-      signale.error(`Failed to delete memory ID ${id}:`, error);
+      console.error(`Failed to delete memory ID ${id}:`, error);
     }
   }
 
-  signale.info("\nDeletion Summary:");
-  signale.info(`- Successfully deleted: ${successCount}`);
-  signale.info(`- Failed to delete: ${failCount}`);
+  console.info("\nDeletion Summary:");
+  console.info(`- Successfully deleted: ${successCount}`);
+  console.info(`- Failed to delete: ${failCount}`);
 
   // If all deletions succeeded, clear the mem-id.json file
   if (successCount === memoryIds.length) {
     fs.writeFileSync(MEM_ID_FILE, "[]");
-    signale.success(`Cleared all content in ${MEM_ID_FILE}`);
+    console.log(`Cleared all content in ${MEM_ID_FILE}`);
   }
 }
 
@@ -117,7 +114,7 @@ async function main() {
   try {
     await deleteMemories();
   } catch (error) {
-    signale.error("Error in deletion process:", error);
+    console.error("Error in deletion process:", error);
     process.exit(1);
   }
 }
