@@ -9,8 +9,6 @@ we can also run other benchmarks :
 
 # how was the locomo benchmark done on other ai models.
 
----
-
 ## 3 tasks
 
 ### qa
