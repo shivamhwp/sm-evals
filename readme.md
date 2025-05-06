@@ -16,3 +16,13 @@ structure:
   - `/search` - contains the code to retrieve requested data from the `/search` endpoint and
   - `semanticmetrics.ts` - calculating the metrics and stuff.
   - `searchutils.ts` - helper functions to generate answer from the given data and then using that data, generate embeddings to compare the two.
+
+<br>
+
+1. is it fully done ?
+
+no, because me and shreyans are making changes to the backend before testing it on data, coz the genreated answer is sometimes empty so we need to add it to the backend so that we can just test the results which can be true measure of the accuracy.
+
+2. what is it calculating ?
+
+per question the semantic similarity is calculated and on the whole dataset we calculate the recall, precision, f1, bleu etc. etc.
