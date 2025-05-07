@@ -27,7 +27,7 @@ export async function addMemory(
     });
 
     // Log status regardless of success/failure
-    console.info(`Add memory attempt status: ${response.status}`);
+    console.log(`Add memory attempt status: ${response.status}`);
 
     if (!response.ok) {
       // Attempt to get more details from the response body
@@ -68,7 +68,7 @@ export async function searchMemories(
       body: JSON.stringify(params),
     });
 
-    console.info(`getting memories from sm : ${response.status}`);
+    console.log(`getting memories from sm : ${response.status}`);
 
     if (!response.ok) {
       throw new Error(`HTTP error! Status: ${response.status}`);
@@ -81,29 +81,43 @@ export async function searchMemories(
   }
 }
 
-// Helper function for delay
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 // Batch add multiple memories at once
 export async function batchAddMemories(
   memories: AddMemoryRequest[]
 ): Promise<AddMemoryResponse[]> {
   const results: AddMemoryResponse[] = [];
 
-  for (const memory of memories) {
-    try {
-      const response = await addMemory(memory);
-      // Status is already logged in addMemory
-      results.push(response);
-    } catch (error) {
-      console.error(`Failed to add memory: ${JSON.stringify(memory)}`, error);
-      // Optionally break or stop processing if one error is critical
-      // break;
+  // Process memories in batches of 20 to avoid overwhelming the server
+  const BATCH_SIZE = 20;
+
+  for (let i = 0; i < memories.length; i += BATCH_SIZE) {
+    const batch = memories.slice(i, i + BATCH_SIZE);
+
+    // Process all memory additions in the current batch in parallel
+    const batchPromises = batch.map(async (memory) => {
+      try {
+        return await addMemory(memory);
+      } catch (error) {
+        console.error(`Failed to add memory: ${JSON.stringify(memory)}`, error);
+        // Return null for failed memories
+        return null;
+      }
+    });
+
+    // Wait for all promises in this batch to resolve
+    const batchResults = await Promise.all(batchPromises);
+
+    // Filter out null values (failed requests) and add to results
+    results.push(
+      ...batchResults.filter(
+        (result): result is AddMemoryResponse => result !== null
+      )
+    );
+
+    // Add a small delay between batches to prevent overwhelming the server
+    if (i + BATCH_SIZE < memories.length) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
-    // Add a delay (e.g., 500ms) between requests
-    await sleep(500);
   }
 
   return results;

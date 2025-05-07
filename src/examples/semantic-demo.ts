@@ -47,8 +47,8 @@ async function runSemanticDemo() {
     },
   ];
 
-  console.info("========= Semantic Metrics Demo =========");
-  console.info(`Testing ${examples.length} question-answer pairs...\n`);
+  console.log("========= Semantic Metrics Demo =========");
+  console.log(`Testing ${examples.length} question-answer pairs...\n`);
 
   // Calculate individual similarities
   for (let i = 0; i < examples.length; i++) {
@@ -58,12 +58,12 @@ async function runSemanticDemo() {
       example.groundTruth
     );
 
-    console.info(`Example ${i + 1}:`);
-    console.info(`Question: ${example.question}`);
-    console.info(`Generated Answer: "${example.generated}"`);
-    console.info(`Ground Truth: "${example.groundTruth}"`);
-    console.info(`Note: ${example.comment}`);
-    console.info(`Semantic Similarity: ${(similarity * 100).toFixed(2)}%`);
+    console.log(`Example ${i + 1}:`);
+    console.log(`Question: ${example.question}`);
+    console.log(`Generated Answer: "${example.generated}"`);
+    console.log(`Ground Truth: "${example.groundTruth}"`);
+    console.log(`Note: ${example.comment}`);
+    console.log(`Semantic Similarity: ${(similarity * 100).toFixed(2)}%`);
 
     // Classify based on thresholds
     if (similarity >= 0.85) {
@@ -74,11 +74,11 @@ async function runSemanticDemo() {
       console.error("Classification: INCORRECT");
     }
 
-    console.info("----------------------------------------\n");
+    console.log("----------------------------------------\n");
   }
 
   // Calculate aggregate metrics with multiple thresholds
-  console.info("Aggregate Metrics Analysis:");
+  console.log("Aggregate Metrics Analysis:");
 
   const generatedAnswers = examples.map((e) => e.generated);
   const groundTruthAnswers = examples.map((e) => e.groundTruth);
@@ -90,7 +90,7 @@ async function runSemanticDemo() {
     [0.6, 0.7, 0.8, 0.85, 0.9]
   );
 
-  console.info("\n============= Demo Complete =============");
+  console.log("\n============= Demo Complete =============");
 }
 
 // Run the demo

@@ -7,7 +7,7 @@ const MEM_ID_FILE = path.join(process.cwd(), "src/data/mem-id.json");
 
 // Step 1: Fetch all memory IDs and save to file
 async function fetchAndSaveMemoryIds() {
-  console.info("Fetching all memory IDs...");
+  console.log("Fetching all memory IDs...");
 
   try {
     const response = await fetch(`${API_BASE_URL}/memories`, {
@@ -37,7 +37,7 @@ async function fetchAndSaveMemoryIds() {
 
 // Step 2: Delete memories using IDs from file
 async function deleteMemories() {
-  console.info("Starting memory deletion process...");
+  console.log("Starting memory deletion process...");
 
   // Read memory IDs from file - directly as an array of strings
   let memoryIds: string[] = [];
@@ -68,7 +68,7 @@ async function deleteMemories() {
     return;
   }
 
-  console.info(`Found ${memoryIds.length} memories to delete`);
+  console.log(`Found ${memoryIds.length} memories to delete`);
 
   // Delete memories one by one
   let successCount = 0;
@@ -98,9 +98,9 @@ async function deleteMemories() {
     }
   }
 
-  console.info("\nDeletion Summary:");
-  console.info(`- Successfully deleted: ${successCount}`);
-  console.info(`- Failed to delete: ${failCount}`);
+  console.log("\nDeletion Summary:");
+  console.log(`- Successfully deleted: ${successCount}`);
+  console.log(`- Failed to delete: ${failCount}`);
 
   // If all deletions succeeded, clear the mem-id.json file
   if (successCount === memoryIds.length) {

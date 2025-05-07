@@ -1,7 +1,7 @@
 import { locomoData, env } from "./utils/config";
 
 async function main() {
-  console.info("\n===== Supermemory Locomo Benchmark Test =====\n");
+  console.log("\n===== Supermemory Locomo Benchmark Test =====\n");
 
   // Check API key
   if (env.apiKey === "development_key") {
@@ -28,16 +28,16 @@ async function main() {
   }
 
   // Show available commands
-  console.info("Available Commands:");
-  console.info("------------------");
-  console.info("bun run load    - Load Locomo data into Supermemory");
-  console.info("bun run search  - Test search functionality on loaded data\n");
+  console.log("Available Commands:");
+  console.log("------------------");
+  console.log("bun run load    - Load Locomo data into Supermemory");
+  console.log("bun run search  - Test search functionality on loaded data\n");
 
-  console.info("Documentation:");
-  console.info("-------------");
-  console.info("- Supermemory API: https://docs.supermemory.ai/introduction");
-  console.info("- Locomo Benchmark: https://github.com/snap-research/locomo");
-  console.info("- sm-evals repo: https://github.com/shivamhwp/sm-evals");
+  console.log("Documentation:");
+  console.log("-------------");
+  console.log("- Supermemory API: https://docs.supermemory.ai/introduction");
+  console.log("- Locomo Benchmark: https://github.com/snap-research/locomo");
+  console.log("- sm-evals repo: https://github.com/shivamhwp/sm-evals");
 }
 
 main().catch((error) => {

@@ -1,4 +1,3 @@
-// Category mapping based on Python evaluation code
 const CATEGORY_MAPPING: Record<string, string> = {
   "1": "Multi-Hop",
   "2": "Single-Hop",
@@ -7,7 +6,6 @@ const CATEGORY_MAPPING: Record<string, string> = {
   "5": "Adversarial",
 };
 
-// Reverse mapping for command line arguments
 export const CATEGORY_ID_MAPPING: Record<string, number> = {
   "multi-hop": 1,
   "single-hop": 2,

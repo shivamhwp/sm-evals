@@ -2,23 +2,13 @@ import {
   getBatchEmbeddings,
   calculateCosineSimilarityFromEmbeddings,
 } from "./searchUtils";
-
+import { type Embedding } from "ai";
+import type { SimilarityMetrics } from "../../types/metrics";
 // Default threshold for considering semantic similarity as a "match"
 const DEFAULT_SIMILARITY_THRESHOLD = 0.85;
 
-export interface SimilarityMetrics {
-  precision: number;
-  recall: number;
-  f1Score: number;
-  accuracyScore: number;
-  similarityScores: number[];
-  averageSimilarity: number;
-  truePositives: number;
-  falsePositives: number;
-  trueNegatives: number;
-  falseNegatives: number;
-  threshold: number;
-}
+// Global embedding cache for this module
+const semanticEmbeddingCache = new Map<string, Embedding | null>();
 
 /**
  * Determines if a generated answer can be considered semantically "correct"
@@ -46,7 +36,29 @@ export async function calculateSemanticSimilarity(
   text1: string,
   text2: string
 ): Promise<number> {
-  const [embedding1, embedding2] = await getBatchEmbeddings([text1, text2]);
+  // Ensure both texts are processed
+  const textsToProcess = [];
+  if (!semanticEmbeddingCache.has(text1)) {
+    textsToProcess.push(text1);
+  }
+  if (!semanticEmbeddingCache.has(text2)) {
+    textsToProcess.push(text2);
+  }
+
+  // Get embeddings for any texts not already cached
+  if (textsToProcess.length > 0) {
+    const embeddings = await getBatchEmbeddings(textsToProcess);
+    textsToProcess.forEach((text, index) => {
+      if (embeddings[index]) {
+        semanticEmbeddingCache.set(text, embeddings[index]);
+      }
+    });
+  }
+
+  // Retrieve embeddings from cache
+  const embedding1 = semanticEmbeddingCache.get(text1) || null;
+  const embedding2 = semanticEmbeddingCache.get(text2) || null;
+
   return calculateCosineSimilarityFromEmbeddings(embedding1, embedding2);
 }
 
@@ -66,62 +78,106 @@ export async function calculateSemanticMetrics(
     );
   }
 
-  // Get embeddings for all answers in two batches (one for generated, one for ground truth)
-  console.info("Generating embeddings for semantic similarity calculation...");
-  const generatedEmbeddings = await getBatchEmbeddings(generatedAnswers);
-  const groundTruthEmbeddings = await getBatchEmbeddings(groundTruthAnswers);
+  // Prepare all unique texts for embedding
+  const allTexts = new Set<string>();
+  generatedAnswers.forEach((text) => allTexts.add(text.trim()));
+  groundTruthAnswers.forEach((text) => allTexts.add(text));
 
-  // Calculate similarity and classification metrics
+  // Get embeddings for all unique texts that aren't already cached
+  const textsToProcess = [...allTexts].filter(
+    (text) => !semanticEmbeddingCache.has(text)
+  );
+
+  if (textsToProcess.length > 0) {
+    console.log(
+      `Generating embeddings for ${textsToProcess.length} unique texts...`
+    );
+    const embeddings = await getBatchEmbeddings(textsToProcess);
+
+    textsToProcess.forEach((text, index) => {
+      if (embeddings[index]) {
+        semanticEmbeddingCache.set(text, embeddings[index]);
+      }
+    });
+  }
+
+  // Process all similarity calculations in parallel
+  const similarityCalculations = generatedAnswers.map((_, i) => {
+    const generated = generatedAnswers[i].trim();
+    const groundTruth = groundTruthAnswers[i];
+
+    const isGeneratedEmpty = generated === emptyAnswerToken;
+    const isGroundTruthEmpty = groundTruth === emptyAnswerToken;
+
+    if (isGroundTruthEmpty && isGeneratedEmpty) {
+      return {
+        truePositives: 0,
+        falsePositives: 0,
+        trueNegatives: 1,
+        falseNegatives: 0,
+        similarity: 1.0,
+      };
+    }
+    if (isGroundTruthEmpty && !isGeneratedEmpty) {
+      return {
+        truePositives: 0,
+        falsePositives: 1,
+        trueNegatives: 0,
+        falseNegatives: 0,
+        similarity: 0.0,
+      };
+    }
+    if (!isGroundTruthEmpty && isGeneratedEmpty) {
+      return {
+        truePositives: 0,
+        falsePositives: 0,
+        trueNegatives: 0,
+        falseNegatives: 1,
+        similarity: 0.0,
+      };
+    }
+
+    // Both are answers, calculate similarity using cached embeddings
+    const genEmbedding = semanticEmbeddingCache.get(generated) || null;
+    const gtEmbedding = semanticEmbeddingCache.get(groundTruth) || null;
+
+    const similarity = calculateCosineSimilarityFromEmbeddings(
+      genEmbedding,
+      gtEmbedding
+    );
+
+    if (similarity >= threshold) {
+      return {
+        truePositives: 1,
+        falsePositives: 0,
+        trueNegatives: 0,
+        falseNegatives: 0,
+        similarity,
+      };
+    } else {
+      return {
+        truePositives: 0,
+        falsePositives: 0,
+        trueNegatives: 0,
+        falseNegatives: 1,
+        similarity,
+      };
+    }
+  });
+
+  // Aggregate the results
   let truePositives = 0;
   let falsePositives = 0;
   let trueNegatives = 0;
   let falseNegatives = 0;
   const similarities: number[] = [];
 
-  for (let i = 0; i < generatedAnswers.length; i++) {
-    const generated = generatedAnswers[i];
-    const groundTruth = groundTruthAnswers[i];
-    const genEmbedding = generatedEmbeddings[i];
-    const gtEmbedding = groundTruthEmbeddings[i];
-
-    // Check if either answer is the "empty" token representing "no answer found"
-    const isGeneratedEmpty = generated.trim() === emptyAnswerToken;
-    const isGroundTruthEmpty = groundTruth.trim() === emptyAnswerToken;
-
-    // Handle the case when one or both answers are "empty"
-    if (isGroundTruthEmpty) {
-      // Ground truth is "no answer"
-      if (isGeneratedEmpty) {
-        // Correctly identified that there is no answer
-        trueNegatives++;
-        similarities.push(1.0); // Perfect match for "no answer"
-      } else {
-        // Incorrectly provided an answer when there should be none
-        falsePositives++;
-        similarities.push(0.0); // Complete mismatch
-      }
-    } else {
-      // Ground truth is an answer
-      if (isGeneratedEmpty) {
-        // Failed to provide an answer when one exists
-        falseNegatives++;
-        similarities.push(0.0); // Complete mismatch
-      } else {
-        // Both are answers, calculate similarity
-        const similarity = calculateCosineSimilarityFromEmbeddings(
-          genEmbedding,
-          gtEmbedding
-        );
-        similarities.push(similarity);
-
-        // Determine if it's similar enough to be considered correct
-        if (similarity >= threshold) {
-          truePositives++;
-        } else {
-          falseNegatives++;
-        }
-      }
-    }
+  for (const result of similarityCalculations) {
+    truePositives += result.truePositives;
+    falsePositives += result.falsePositives;
+    trueNegatives += result.trueNegatives;
+    falseNegatives += result.falseNegatives;
+    similarities.push(result.similarity);
   }
 
   // Calculate precision, recall, F1 score
@@ -163,27 +219,27 @@ export async function analyzeSemanticSimilarity(
   groundTruthAnswers: string[],
   thresholds: number[] = [0.7, 0.8, 0.85, 0.9, 0.95]
 ): Promise<void> {
-  console.info("\n===== Semantic Similarity Analysis =====");
+  console.log("\n===== Semantic Similarity Analysis =====");
 
   for (const threshold of thresholds) {
-    console.info(`\n--- Threshold: ${threshold} ---`);
+    console.log(`\n--- Threshold: ${threshold} ---`);
     const metrics = await calculateSemanticMetrics(
       generatedAnswers,
       groundTruthAnswers,
       threshold
     );
 
-    console.info(`Precision: ${(metrics.precision * 100).toFixed(4)}%`);
-    console.info(`Recall: ${(metrics.recall * 100).toFixed(4)}%`);
-    console.info(`F1 Score: ${(metrics.f1Score * 100).toFixed(4)}%`);
-    console.info(`Accuracy: ${(metrics.accuracyScore * 100).toFixed(4)}%`);
-    console.info(
+    console.log(`Precision: ${(metrics.precision * 100).toFixed(4)}%`);
+    console.log(`Recall: ${(metrics.recall * 100).toFixed(4)}%`);
+    console.log(`F1 Score: ${(metrics.f1Score * 100).toFixed(4)}%`);
+    console.log(`Accuracy: ${(metrics.accuracyScore * 100).toFixed(4)}%`);
+    console.log(
       `Average Similarity: ${(metrics.averageSimilarity * 100).toFixed(4)}%`
     );
-    console.info(
+    console.log(
       `TP: ${metrics.truePositives}, FP: ${metrics.falsePositives}, TN: ${metrics.trueNegatives}, FN: ${metrics.falseNegatives}`
     );
   }
 
-  console.info("\n========================================");
+  console.log("\n========================================");
 }

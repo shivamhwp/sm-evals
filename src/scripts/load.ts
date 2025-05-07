@@ -359,14 +359,24 @@ async function loadLocomoData() {
 
   console.log(`Found ${locomoData.length} conversations`);
 
-  let totalDialogs = 0;
-  let totalObservations = 0;
-  let totalSummaries = 0;
-  let processedConversations = 0;
-  let failedConversations = 0;
+  // Create counters object to be updated by each parallel task
+  const totals = {
+    totalDialogs: 0,
+    totalObservations: 0,
+    totalSummaries: 0,
+    processedConversations: 0,
+    failedConversations: 0,
+  };
 
-  for (let i = 0; i < locomoData.length; i++) {
-    const conversation = locomoData[i];
+  // Function to process a single conversation
+  async function processConversation(conversation: any, index: number) {
+    const result = {
+      dialogCount: 0,
+      observationCount: 0,
+      summaryCount: 0,
+      processed: false,
+      failed: false,
+    };
 
     // Basic check for conversation validity
     if (
@@ -375,14 +385,14 @@ async function loadLocomoData() {
       !conversation.sample_id
     ) {
       console.warn(
-        `Skipping invalid conversation data at index ${i}. Missing basic structure or sample_id.`
+        `Skipping invalid conversation data at index ${index}. Missing basic structure or sample_id.`
       );
-      failedConversations++;
-      continue; // Skip to the next conversation
+      result.failed = true;
+      return result;
     }
 
     console.log(
-      `Processing conversation ${i + 1}/${locomoData.length} (${
+      `Processing conversation ${index + 1}/${locomoData.length} (${
         conversation.sample_id
       })`
     );
@@ -390,69 +400,119 @@ async function loadLocomoData() {
     try {
       // Extract data from conversation
       const { dialogTurns, observations, sessionSummaries } =
-        extractDialogTurns(conversation); // Assumes conversation is valid ConversationData
+        extractDialogTurns(conversation);
 
-      // Convert to memory format - Filter out any potential nulls/undefined if dialogTurnToMemory could return them
-      // Though current implementation provides fallbacks instead of returning null.
+      // Convert to memory format
       const dialogMemories = dialogTurns.map((turn) =>
         dialogTurnToMemory(turn, conversation.sample_id)
       );
-      // .filter((mem): mem is AddMemoryRequest => mem !== null); // Example filter if nulls were returned
 
       const observationMemories = observations.map((obs) =>
         textToMemory(obs, "observation", conversation.sample_id)
       );
+
       const summaryMemories = sessionSummaries.map((summary) =>
         textToMemory(summary, "summary", conversation.sample_id)
       );
 
-      // Batch upload memories only if there are memories to upload
+      // Batch upload memories in parallel
+      const uploadTasks = [];
+
+      // Only add upload tasks if there are memories to upload
       if (dialogMemories.length > 0) {
         console.log(`Uploading ${dialogMemories.length} dialog turns...`);
-        await batchAddMemories(dialogMemories);
-        totalDialogs += dialogMemories.length;
+        uploadTasks.push(
+          batchAddMemories(dialogMemories).then(() => {
+            result.dialogCount = dialogMemories.length;
+          })
+        );
       } else {
         console.log("No valid dialog turns found to upload.");
       }
 
       if (observationMemories.length > 0) {
         console.log(`Uploading ${observationMemories.length} observations...`);
-        await batchAddMemories(observationMemories);
-        totalObservations += observationMemories.length;
+        uploadTasks.push(
+          batchAddMemories(observationMemories).then(() => {
+            result.observationCount = observationMemories.length;
+          })
+        );
       } else {
         console.log("No valid observations found to upload.");
       }
 
       if (summaryMemories.length > 0) {
         console.log(`Uploading ${summaryMemories.length} session summaries...`);
-        await batchAddMemories(summaryMemories);
-        totalSummaries += summaryMemories.length;
+        uploadTasks.push(
+          batchAddMemories(summaryMemories).then(() => {
+            result.summaryCount = summaryMemories.length;
+          })
+        );
       } else {
         console.log("No valid session summaries found to upload.");
       }
 
-      processedConversations++;
+      // Wait for all uploads to complete
+      await Promise.all(uploadTasks);
+      result.processed = true;
     } catch (error) {
       console.error(
         `Error processing conversation ${conversation.sample_id}:`,
         error
       );
-      failedConversations++;
-      // Decide if you want to continue with the next conversation or stop
-      // continue; // Uncomment to continue processing other conversations
+      result.failed = true;
+    }
+
+    return result;
+  }
+
+  // Process conversations in batches of 10 to avoid overwhelming the backend
+  const BATCH_SIZE = 10;
+  for (let i = 0; i < locomoData.length; i += BATCH_SIZE) {
+    const batchIndices = Array.from(
+      { length: Math.min(BATCH_SIZE, locomoData.length - i) },
+      (_, j) => i + j
+    );
+
+    console.log(
+      `\nProcessing conversation batch ${i / BATCH_SIZE + 1}/${Math.ceil(
+        locomoData.length / BATCH_SIZE
+      )}`
+    );
+
+    // Process this batch of conversations in parallel
+    const batchPromises = batchIndices.map((index) =>
+      processConversation(locomoData[index], index)
+    );
+
+    // Wait for the current batch to complete
+    const batchResults = await Promise.all(batchPromises);
+
+    // Aggregate results from this batch
+    for (const result of batchResults) {
+      totals.totalDialogs += result.dialogCount;
+      totals.totalObservations += result.observationCount;
+      totals.totalSummaries += result.summaryCount;
+
+      if (result.processed) totals.processedConversations++;
+      if (result.failed) totals.failedConversations++;
     }
   }
 
   console.log("\n--- Load Process Summary ---");
-  console.log(`- Total conversations processed: ${processedConversations}`);
-  console.log(`- Total conversations failed/skipped: ${failedConversations}`);
+  console.log(
+    `- Total conversations processed: ${totals.processedConversations}`
+  );
+  console.log(
+    `- Total conversations failed/skipped: ${totals.failedConversations}`
+  );
   console.log("\n--- Upload Summary ---");
-  console.log(`- Total dialog turns uploaded: ${totalDialogs}`);
-  console.log(`- Total observations uploaded: ${totalObservations}`);
-  console.log(`- Total session summaries uploaded: ${totalSummaries}`);
+  console.log(`- Total dialog turns uploaded: ${totals.totalDialogs}`);
+  console.log(`- Total observations uploaded: ${totals.totalObservations}`);
+  console.log(`- Total session summaries uploaded: ${totals.totalSummaries}`);
   console.log(
     `- Total memories uploaded: ${
-      totalDialogs + totalObservations + totalSummaries
+      totals.totalDialogs + totals.totalObservations + totals.totalSummaries
     }`
   );
 }

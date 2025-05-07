@@ -34,7 +34,7 @@ export async function getBatchEmbeddings(
     try {
       const model = openai.textEmbeddingModel(EMBEDDING_MODEL_NAME);
 
-      // Process each text individually but in a single batch
+      // Process each text individually but in parallel
       const embedPromises = uncachedTexts.map((text) =>
         embed({ model, value: text })
       );
@@ -82,7 +82,13 @@ export function calculateCosineSimilarityFromEmbeddings(
 ): number {
   // Handle cases where embeddings could not be generated
   if (!embedding1 || !embedding2) {
-    console.debug("Cannot calculate similarity with null embeddings");
+    if (!embedding1 && !embedding2) {
+      console.warn("Both embeddings are null - returning 0 similarity score");
+    } else if (!embedding1) {
+      console.warn("First embedding is null - returning 0 similarity score");
+    } else {
+      console.warn("Second embedding is null - returning 0 similarity score");
+    }
     return 0;
   }
   // The cosineSimilarity function expects number[]
@@ -106,7 +112,7 @@ export async function generateAnswer(question: string, context: string[]) {
   
   3. Preserve exact terminology from the context - don't paraphrase or substitute terms.
   
-  4. If the answer cannot be found in the context, respond with a single space " ".
+  4. You have to answer with some answer, but it must not be from outside the context.
   
   Your goal is maximum accuracy with minimum words. Extract only what directly answers the question.
   `;
