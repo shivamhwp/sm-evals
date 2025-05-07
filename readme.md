@@ -57,3 +57,4 @@ no, because me and shreyans are making changes to the backend before testing it 
 ### improvements/changes coming in the future.
 
 1. after the implementation of backend with shreyans. we will be testing it. there will be no need for generate answers with llm. which will make the pipeline faster and more accurate.
+2. have the lengths of the ground truths and the generates answer similar to get better semantic similarity. [https://g.co/gemini/share/0dc7950e1cc5](https://g.co/gemini/share/0dc7950e1cc5)
