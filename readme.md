@@ -54,6 +54,10 @@ no, because me and shreyans are making changes to the backend before testing it 
 
 <br>
 
+## resources :
+
+1. [https://compromise.cool/one/lookup/](https://compromise.cool/one/lookup/) this looks primising.
+
 ### improvements/changes coming in the future.
 
 1. after the implementation of backend with shreyans. we will be testing it. there will be no need for generate answers with llm. which will make the pipeline faster and more accurate.
