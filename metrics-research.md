@@ -16,12 +16,14 @@ possible metrics to be tested.
 ## methods.
 
 1.GENERAL RETRIEVAL BENCHMARKS: between [beir](https://github.com/beir-cellar/beir), [mteb](https://github.com/embeddings-benchmark/mteb) and [locomo](https://github.com/snap-research/locomo).
--> beir - tests retrieval capability in zero-shot setting. specifically designed for retrieval ai systems. contains 17 diverse text retrieval tasks.
--> mteb(2nd best choice if we wanna do it) - overall broader focus. evaluating embedding across many tasks. contains 58+ datasets.
+
+- beir - tests retrieval capability in zero-shot setting. specifically designed for retrieval ai systems. contains 17 diverse text retrieval tasks.
+
+- mteb(2nd best choice if we wanna do it) - overall broader focus. evaluating embedding across many tasks. contains 58+ datasets.
 
 > above benchmarks test the foundational ability to embed text and perform similarity search accurately.
 
--> locomo(current) -> generally used for long term conversation memory. not relevant at all. ( irrelevant )(will be removing.)
+- locomo(current) -> generally used for long term conversation memory. not relevant at all. ( irrelevant )(will be removing.)
 
 2. [ann-benchmakrs](https://github.com/erikbern/ann-benchmarks/) :
 
@@ -34,6 +36,8 @@ possible metrics to be tested.
    <br>
 
 ## tools
+
+1. langsmith : can become pretty expensive.
 
 ---
 
