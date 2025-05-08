@@ -11,5 +11,6 @@ after locomo this might be a good benchmark
 ###things to do in priority :
 
 - [x] changing all the sequentially processed code to parallely processed code which uses concurrency.
+- [ ] more research on metrics first.
+- [ ] implement llm as a judge metric.
 - [ ] terminal gui.
-- [ ] start working on backend with shreyans.
