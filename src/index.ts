@@ -1,7 +1,7 @@
-import { locomoData, env } from "./utils/config";
+import { env } from "./utils/config";
 
 async function main() {
-  console.log("\n===== Supermemory Locomo Benchmark Test =====\n");
+  console.log("\n===== Supermemory BEIR Benchmark Test =====\n");
 
   // Check API key
   if (env.apiKey === "development_key") {
@@ -15,28 +15,41 @@ async function main() {
     console.log("✅ API key configured successfully\n");
   }
 
-  // Check Locomo data
-  if (locomoData.length === 0) {
+  // Check PyMetrics API URL
+  console.log(`PyMetrics API URL: ${env.pymetricsApiUrl}`);
+
+  try {
+    // Test PyMetrics connection
+    const response = await fetch(`${env.pymetricsApiUrl}/`);
+    if (response.ok) {
+      console.log("✅ PyMetrics API connection successful\n");
+    } else {
+      console.warn(
+        "⚠️  PyMetrics API connection failed. Start the service with:\n"
+      );
+      console.warn("   bun run start-pymetrics\n");
+    }
+  } catch (error) {
     console.warn(
-      "⚠️  No Locomo data found. Make sure you have cloned the repository:"
+      "⚠️  PyMetrics API connection failed. Start the service with:\n"
     );
-    console.warn("   git clone https://github.com/snap-research/locomo.git\n");
-  } else {
-    console.log(
-      `✅ Loaded ${locomoData.length} conversations from Locomo dataset\n`
-    );
+    console.warn("   bun run start-pymetrics\n");
   }
 
   // Show available commands
   console.log("Available Commands:");
   console.log("------------------");
-  console.log("bun run load    - Load Locomo data into Supermemory");
-  console.log("bun run search  - Test search functionality on loaded data\n");
+  console.log("bun run start-pymetrics - Start the PyMetrics service");
+  console.log("bun run download-beir <dataset> - Download a BEIR dataset");
+  console.log(
+    "bun run load-beir <dataset> - Load BEIR dataset into Supermemory"
+  );
+  console.log("bun run search-beir <dataset> - Test search on BEIR dataset\n");
 
   console.log("Documentation:");
   console.log("-------------");
   console.log("- Supermemory API: https://docs.supermemory.ai/introduction");
-  console.log("- Locomo Benchmark: https://github.com/snap-research/locomo");
+  console.log("- BEIR Benchmark: https://github.com/beir-cellar/beir");
   console.log("- sm-evals repo: https://github.com/shivamhwp/sm-evals");
 }
 

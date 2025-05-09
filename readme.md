@@ -1,64 +1,141 @@
-# supermemory evals
+# Supermemory Evaluation Framework
 
-eval pipeline arch
-![eval pipeline arch](https://ypazyw0thq.ufs.sh/f/38t7p527clgqo22VgcQ8ankEhq9Rw0ur6xpgAG3tTCLNQ8eP)
-<br>
+A framework for evaluating Supermemory's performance using BEIR benchmark datasets for Information Retrieval tasks.
 
-structure:
+## Overview
 
-`/locomo_data` : contains the locommo conversation dataset. [learn more here](https://github.com/shivamhwp/sm-evals/blob/main/assets/what.md)
+This project provides tools to:
 
-`/pymetrics` : contains a fast-api python web server implementation which takes the generated answer and the ground truth embeddings from the getmetrics and returns the metrics. (mainly using nltk and scikit-learn) [not needed right now.]
+1. Download and process BEIR benchmark datasets
+2. Load BEIR datasets into Supermemory
+3. Evaluate Supermemory's retrieval performance using standard IR metrics
 
-`/src` : contains the whole typescript implementation of evals.
+## Setup
 
-- `/api` - handles the addition and searching of memories.
-- `/data` - temp files needed for running scripts like `delete-mems` etc.
-- `/types` - contains types.
-- `/scripts` - contains the scripts to load and delete memories from supermemory.
-- `/evaluation` => this contains all the juicy stuff which we currently use to calculate metrics.
-  - `/search` - contains the code to retrieve requested data from the `/search` endpoint and
-  - `semanticmetrics.ts` - calculating the metrics and stuff.
-  - `searchutils.ts` - helper functions to generate answer from the given data and then using that data, generate embeddings to compare the two.
+### Requirements
 
-<br>
+- Node.js and Bun
+- Python 3.10+
+- uv (Python package manager)
+- Environment variables for API access
 
-### faqs
+### Installation
 
-<br>
-1. is it fully done ?
+1. Clone this repository
+2. Install dependencies:
 
-no, because me and shreyans are making changes to the backend before testing it on data, coz the genreated answer is sometimes empty so we need to add it to the backend so that we can just test the results which can be true measure of the accuracy.
+```bash
+# Install JavaScript dependencies
+bun install
 
-2. what is it calculating ?
+# Install Python dependencies
+cd py-metrics
+uv pip install -e .
+```
 
-   per question the semantic similarity is calculated and on the whole dataset we calculate the recall, precision, f1, bleu etc. etc.
+3. Create a `.env` file in the root directory with your API keys:
 
-3. how are we testing ?
+```
+SUPERMEMORY_API_KEY=your_api_key
+SUPERMEMORY_API_URL=https://v2.api.supermemory.ai/
+PYMETRICS_API_URL=http://localhost:8000
+```
 
-   - right now we are only testing the retrieval capability of the text and not the vids, audio etc.
+## Usage
 
-   here are the steps
+### Step 1: Start the PyMetrics Service
 
-   - the dataset containing the conversation is uploaded to supermemory(only once.)
-   - once the upload is done. we need to test the relevant info retrieval capability of sm.
-   - using questions defined in the locomo10.json file, we iterate through them and ask for answers to the questions.
-   - the supermemory be sends the most relevant data(i.e the parts of their convo) to the user.
-   - we upload them as context to the llm and also the question from the dataset we want the answer to and the that llm generates the answer.
-   - to compare the similarity between the answers we first convert them into embeddings and then comapre their cosine similarity(using ai-sdk from vercel).
-   - all of this data is printed to the terminal.
+The Python FastAPI service handles BEIR dataset downloading and evaluation:
 
-4. any insights currently ?
+```bash
+bun run start-pymetrics
+```
 
-   - the most fast process of all in the whole pipelin is retrieval. +++
+This starts a FastAPI server on `http://localhost:8000`.
 
-<br>
+### Step 2: Download a BEIR Dataset
 
-## resources :
+```bash
+bun run download-beir scifact
+```
 
-1. [https://compromise.cool/one/lookup/](https://compromise.cool/one/lookup/) this looks primising.
+Replace `scifact` with the name of any BEIR dataset:
 
-### improvements/changes coming in the future.
+- `scifact`: Scientific fact-checking
+- `nfcorpus`: News and MEDLINE articles
+- `fiqa`: Financial opinion mining
+- `dbpedia-entity`: Entity retrieval
+- And many more...
 
-1. after the implementation of backend with shreyans. we will be testing it. there will be no need for generate answers with llm. which will make the pipeline faster and more accurate.
-2. have the lengths of the ground truths and the generates answer similar to get better semantic similarity. [https://g.co/gemini/share/0dc7950e1cc5](https://g.co/gemini/share/0dc7950e1cc5)
+### Step 3: Load Data into Supermemory
+
+```bash
+bun run load-beir scifact
+```
+
+This will:
+
+1. Download the dataset if not already downloaded
+2. Fetch the corpus from the PyMetrics service
+3. Process and upload documents to Supermemory in batches
+
+### Step 4: Run Search Evaluation
+
+```bash
+bun run search-beir scifact
+```
+
+This will:
+
+1. Fetch queries and relevance judgments (qrels) from the PyMetrics service
+2. Execute each query against Supermemory
+3. Evaluate the results using standard IR metrics (NDCG, MAP, Recall, Precision)
+4. Save detailed results to the `results/` directory
+
+## Metrics
+
+Evaluation produces the following metrics:
+
+- NDCG@k (Normalized Discounted Cumulative Gain)
+- Precision@k
+- Recall@k
+- MAP@k (Mean Average Precision)
+
+Where k is typically 1, 3, 5, 10, and 100.
+
+## Troubleshooting
+
+### Dataset Download Issues
+
+If you encounter issues with dataset downloads:
+
+1. Check the PyMetrics logs for detailed error messages
+2. Ensure you have sufficient disk space
+3. Try running the download command again, as the download process has improved error handling
+
+The downloader will:
+
+- Download the zip file if it doesn't exist
+- Extract the contents properly
+- Convert JSONL/TSV files to JSON format
+- Handle various dataset structures
+
+### Empty Evaluation Results
+
+If evaluation returns zeros for all metrics:
+
+1. Check if the dataset was downloaded correctly
+2. Verify that the queries and qrels files exist
+3. Ensure that the search results contain document IDs that match those in the qrels file
+
+## Development
+
+### Project Structure
+
+- `py-metrics/`: Python FastAPI service for BEIR dataset handling
+- `src/`: TypeScript codebase
+  - `api/`: API client for Supermemory
+  - `evaluation/`: Evaluation logic
+  - `scripts/`: Utility scripts
+  - `types/`: TypeScript type definitions
+  - `utils/`: Utility functions

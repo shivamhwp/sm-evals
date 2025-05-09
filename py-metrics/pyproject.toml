@@ -10,6 +10,7 @@ dependencies = [
     "uvicorn==0.30.0",
     "nltk==3.8.1",
     "scikit-learn==1.4.0",
+    "beir==2.0.0",
 ]
 
 [build-system]
