@@ -81,44 +81,96 @@ async function main() {
       absoluteResultsFilePath,
       k_values
     );
+
+    // Check if there was an error
+    if (evaluationResults.error) {
+      console.error(`\nWARNING: ${evaluationResults.error}`);
+      console.log(
+        "Displaying metrics with zero values due to the error above."
+      );
+    }
+
     // Display evaluation results in ASCII table
     console.log("\nEvaluation Results:");
     console.log("┌──────────┬──────────┬──────────┬──────────┐");
     console.log("│ Metric   │    @1    │    @3    │    @5    │");
     console.log("├──────────┼──────────┼──────────┼──────────┤");
+
+    // Create helper function to safely access metric values with fallback
+    const getMetricValue = (
+      metricCategory: string,
+      metricKey: string
+    ): number => {
+      try {
+        // Check if metrics structure and categories exist
+        if (!evaluationResults?.metrics?.[metricCategory]) {
+          return 0;
+        }
+
+        // Get the metrics dictionary for the category
+        const metricsDict = evaluationResults.metrics[metricCategory];
+
+        // First try the exact key
+        if (
+          metricsDict[metricKey] !== undefined &&
+          metricsDict[metricKey] !== null
+        ) {
+          return metricsDict[metricKey];
+        }
+
+        // If not found, look for any keys that contain the metric key
+        // This helps handle various formatting issues
+        const possibleKeys = Object.keys(metricsDict).filter((k) =>
+          k.includes(metricKey)
+        );
+        if (possibleKeys.length > 0) {
+          return metricsDict[possibleKeys[0]];
+        }
+
+        return 0;
+      } catch (e) {
+        console.error(
+          `Error getting metric value for ${metricCategory}.${metricKey}:`,
+          e
+        );
+        return 0;
+      }
+    };
+
+    // Use the helper function to safely access metrics
     console.log(
-      `│ NDCG     │  ${evaluationResults.metrics.ndcg["NDCG@1"]
+      `│ NDCG     │  ${getMetricValue("ndcg", "NDCG@1")
         .toFixed(4)
-        .padStart(6)}  │  ${evaluationResults.metrics.ndcg["NDCG@3"]
+        .padStart(6)}  │  ${getMetricValue("ndcg", "NDCG@3")
         .toFixed(4)
-        .padStart(6)}  │  ${evaluationResults.metrics.ndcg["NDCG@5"]
+        .padStart(6)}  │  ${getMetricValue("ndcg", "NDCG@5")
         .toFixed(4)
         .padStart(6)}  │`
     );
     console.log(
-      `│ MAP      │  ${evaluationResults.metrics.map["MAP@1"]
+      `│ MAP      │  ${getMetricValue("map", "MAP@1")
         .toFixed(4)
-        .padStart(6)}  │  ${evaluationResults.metrics.map["MAP@3"]
+        .padStart(6)}  │  ${getMetricValue("map", "MAP@3")
         .toFixed(4)
-        .padStart(6)}  │  ${evaluationResults.metrics.map["MAP@5"]
-        .toFixed(4)
-        .padStart(6)}  │`
-    );
-    console.log(
-      `│ Recall   │  ${evaluationResults.metrics.recall["Recall@1"]
-        .toFixed(4)
-        .padStart(6)}  │  ${evaluationResults.metrics.recall["Recall@3"]
-        .toFixed(4)
-        .padStart(6)}  │  ${evaluationResults.metrics.recall["Recall@5"]
+        .padStart(6)}  │  ${getMetricValue("map", "MAP@5")
         .toFixed(4)
         .padStart(6)}  │`
     );
     console.log(
-      `│ Precision│  ${evaluationResults.metrics.precision["P@1"]
+      `│ Recall   │  ${getMetricValue("recall", "Recall@1")
         .toFixed(4)
-        .padStart(6)}  │  ${evaluationResults.metrics.precision["P@3"]
+        .padStart(6)}  │  ${getMetricValue("recall", "Recall@3")
         .toFixed(4)
-        .padStart(6)}  │  ${evaluationResults.metrics.precision["P@5"]
+        .padStart(6)}  │  ${getMetricValue("recall", "Recall@5")
+        .toFixed(4)
+        .padStart(6)}  │`
+    );
+    console.log(
+      `│ Precision│  ${getMetricValue("precision", "P@1")
+        .toFixed(4)
+        .padStart(6)}  │  ${getMetricValue("precision", "P@3")
+        .toFixed(4)
+        .padStart(6)}  │  ${getMetricValue("precision", "P@5")
         .toFixed(4)
         .padStart(6)}  │`
     );

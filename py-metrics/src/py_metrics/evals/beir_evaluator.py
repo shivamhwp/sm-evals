@@ -130,6 +130,27 @@ def evaluate_beir_results(results, qrels_path=None, qrels=None, k_values=None):
             processed_qrels, processed_results, evaluator.k_values
         )
 
+        # Log the type of metrics for debugging
+        logger.info(f"Metrics type: {type(metrics)}")
+
+        # Check if metrics is a tuple (some BEIR versions return tuples)
+        if isinstance(metrics, tuple):
+            logger.warning(
+                "evaluator.evaluate() returned a tuple instead of a dictionary"
+            )
+            # Convert the tuple to a dictionary manually
+            if len(metrics) >= 4:
+                metrics_dict = {
+                    "ndcg": metrics[0],
+                    "map": metrics[1],
+                    "recall": metrics[2],
+                    "precision": metrics[3],
+                }
+                metrics = metrics_dict
+            else:
+                logger.error(f"Metrics tuple has unexpected length: {len(metrics)}")
+                return create_empty_metrics(k_values)
+
         return metrics
     except Exception as e:
         logger.error(f"Error in evaluation: {e}")
@@ -140,8 +161,11 @@ def evaluate_beir_results(results, qrels_path=None, qrels=None, k_values=None):
 def create_empty_metrics(k_values):
     """Create empty metrics dictionary for when evaluation fails"""
     metrics = {}
-    for metric_type in ["ndcg", "map", "recall", "precision"]:
-        metrics[metric_type] = {k: 0.0 for k in k_values}
+    # Use properly formatted metric names expected by the frontend
+    metrics["ndcg"] = {k: 0.0 for k in k_values}
+    metrics["map"] = {k: 0.0 for k in k_values}
+    metrics["recall"] = {k: 0.0 for k in k_values}
+    metrics["precision"] = {k: 0.0 for k in k_values}
     return metrics
 
 
@@ -149,31 +173,125 @@ def format_metrics(metrics):
     """Format metrics for display/API return"""
     formatted = {}
 
-    # NDCG at different k values
-    ndcg = {}
-    for k in metrics["ndcg"].keys():
-        ndcg[f"NDCG@{k}"] = metrics["ndcg"][k]
-    formatted["ndcg"] = ndcg
+    # Check if metrics is a tuple (from BEIR evaluator) instead of dict
+    if isinstance(metrics, tuple):
+        # Log a warning about unexpected tuple format
+        logger.warning(
+            "Received metrics as a tuple instead of a dictionary. Attempting to convert..."
+        )
+        try:
+            # Try to convert tuple to dictionary - common structure for BEIR
+            # BEIR's EvaluateRetrieval sometimes returns (ndcg, _map, recall, precision)
+            if len(metrics) >= 4:
+                # Create a properly structured metrics dictionary
+                metrics_dict = {"ndcg": {}, "map": {}, "recall": {}, "precision": {}}
 
-    # MAP
-    map_metrics = {}
-    for k in metrics["map"].keys():
-        map_metrics[f"MAP@{k}"] = metrics["map"][k]
-    formatted["map"] = map_metrics
+                # BEIR tuple elements are often dictionaries keyed by k-values
+                # Extract and format them properly
+                ndcg_dict, map_dict, recall_dict, precision_dict = (
+                    metrics[0],
+                    metrics[1],
+                    metrics[2],
+                    metrics[3],
+                )
 
-    # Recall
-    recall = {}
-    for k in metrics["recall"].keys():
-        recall[f"Recall@{k}"] = metrics["recall"][k]
-    formatted["recall"] = recall
+                # Handle each metric dictionary if it exists and has the expected structure
+                if isinstance(ndcg_dict, dict):
+                    metrics_dict["ndcg"] = ndcg_dict
+                if isinstance(map_dict, dict):
+                    metrics_dict["map"] = map_dict
+                if isinstance(recall_dict, dict):
+                    metrics_dict["recall"] = recall_dict
+                if isinstance(precision_dict, dict):
+                    metrics_dict["precision"] = precision_dict
 
-    # Precision
-    precision = {}
-    for k in metrics["precision"].keys():
-        precision[f"P@{k}"] = metrics["precision"][k]
-    formatted["precision"] = precision
+                metrics = metrics_dict
+            else:
+                logger.error(
+                    f"Received tuple with unexpected length: {len(metrics)}. Creating empty metrics."
+                )
+                # Not enough elements in tuple, return empty metrics
+                return {
+                    "ndcg": {"NDCG@1": 0.0, "NDCG@3": 0.0, "NDCG@5": 0.0},
+                    "map": {"MAP@1": 0.0, "MAP@3": 0.0, "MAP@5": 0.0},
+                    "recall": {"Recall@1": 0.0, "Recall@3": 0.0, "Recall@5": 0.0},
+                    "precision": {"P@1": 0.0, "P@3": 0.0, "P@5": 0.0},
+                }
+        except Exception as e:
+            logger.error(f"Error converting metrics tuple to dictionary: {e}")
+            # Return empty metrics with consistent format on error
+            return {
+                "ndcg": {"NDCG@1": 0.0, "NDCG@3": 0.0, "NDCG@5": 0.0},
+                "map": {"MAP@1": 0.0, "MAP@3": 0.0, "MAP@5": 0.0},
+                "recall": {"Recall@1": 0.0, "Recall@3": 0.0, "Recall@5": 0.0},
+                "precision": {"P@1": 0.0, "P@3": 0.0, "P@5": 0.0},
+            }
 
-    return formatted
+    try:
+        # Initialize empty dictionaries with default values
+        ndcg = {"NDCG@1": 0.0, "NDCG@3": 0.0, "NDCG@5": 0.0}
+        map_metrics = {"MAP@1": 0.0, "MAP@3": 0.0, "MAP@5": 0.0}
+        recall = {"Recall@1": 0.0, "Recall@3": 0.0, "Recall@5": 0.0}
+        precision = {"P@1": 0.0, "P@3": 0.0, "P@5": 0.0}
+
+        # NDCG at different k values
+        if "ndcg" in metrics and metrics["ndcg"] and isinstance(metrics["ndcg"], dict):
+            for k in metrics["ndcg"].keys():
+                # Check if key already has the prefix 'NDCG@'
+                if str(k).startswith("NDCG@"):
+                    ndcg[str(k)] = metrics["ndcg"][k]
+                else:
+                    ndcg[f"NDCG@{k}"] = metrics["ndcg"][k]
+        formatted["ndcg"] = ndcg
+
+        # MAP
+        if "map" in metrics and metrics["map"] and isinstance(metrics["map"], dict):
+            for k in metrics["map"].keys():
+                # Check if key already has the prefix 'MAP@'
+                if str(k).startswith("MAP@"):
+                    map_metrics[str(k)] = metrics["map"][k]
+                else:
+                    map_metrics[f"MAP@{k}"] = metrics["map"][k]
+        formatted["map"] = map_metrics
+
+        # Recall
+        if (
+            "recall" in metrics
+            and metrics["recall"]
+            and isinstance(metrics["recall"], dict)
+        ):
+            for k in metrics["recall"].keys():
+                # Check if key already has the prefix 'Recall@'
+                if str(k).startswith("Recall@"):
+                    recall[str(k)] = metrics["recall"][k]
+                else:
+                    recall[f"Recall@{k}"] = metrics["recall"][k]
+        formatted["recall"] = recall
+
+        # Precision
+        if (
+            "precision" in metrics
+            and metrics["precision"]
+            and isinstance(metrics["precision"], dict)
+        ):
+            for k in metrics["precision"].keys():
+                # Check if key already has the prefix 'P@'
+                if str(k).startswith("P@"):
+                    precision[str(k)] = metrics["precision"][k]
+                else:
+                    precision[f"P@{k}"] = metrics["precision"][k]
+        formatted["precision"] = precision
+
+        return formatted
+    except Exception as e:
+        logger.error(f"Error formatting metrics: {e}")
+        # Return consistently formatted empty metrics if anything goes wrong
+        return {
+            "ndcg": {"NDCG@1": 0.0, "NDCG@3": 0.0, "NDCG@5": 0.0},
+            "map": {"MAP@1": 0.0, "MAP@3": 0.0, "MAP@5": 0.0},
+            "recall": {"Recall@1": 0.0, "Recall@3": 0.0, "Recall@5": 0.0},
+            "precision": {"P@1": 0.0, "P@3": 0.0, "P@5": 0.0},
+        }
 
 
 def evaluate_from_file(results_path, qrels_path, k_values=None):

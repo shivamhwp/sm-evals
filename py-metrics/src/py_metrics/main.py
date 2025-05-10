@@ -16,6 +16,7 @@ from py_metrics.evals.calculate_metrics import (
     compute_classification_metrics,
     compute_bleu_score,
 )
+
 from py_metrics.types.metrics import MetricsPayload
 
 app = FastAPI(title="BEIR API", description="API for working with BEIR datasets")
@@ -33,6 +34,7 @@ class DownloadResponse(BaseModel):
 class EvaluationResults(BaseModel):
     metrics: Dict
     dataset_name: str
+    error: Optional[str] = None
 
 
 class SearchResults(BaseModel):
@@ -152,15 +154,16 @@ async def evaluate_results(
     qrels_path = data_dir / "qrels.json"
 
     if not qrels_path.exists():
-        # Instead of throwing an error, we'll return empty metrics
-        # This allows the frontend to show 0 scores rather than crashing
         import logging
 
-        logging.warning(
-            f"Qrels file not found for {dataset_name}, returning empty metrics"
-        )
+        error_msg = f"Qrels file not found for {dataset_name}"
+        logging.warning(error_msg)
         empty_metrics = format_metrics(create_empty_metrics(k_values or [1, 3, 5]))
-        return {"metrics": empty_metrics, "dataset_name": dataset_name}
+        return {
+            "metrics": empty_metrics,
+            "dataset_name": dataset_name,
+            "error": error_msg,
+        }
 
     try:
         # Evaluate the results
@@ -175,10 +178,14 @@ async def evaluate_results(
     except Exception as e:
         import logging
 
+        error_msg = f"Error evaluating results: {str(e)}"
         logging.error(f"Error evaluating results for {dataset_name}: {str(e)}")
-        # Return empty metrics instead of error
         empty_metrics = format_metrics(create_empty_metrics(k_values or [1, 3, 5]))
-        return {"metrics": empty_metrics, "dataset_name": dataset_name}
+        return {
+            "metrics": empty_metrics,
+            "dataset_name": dataset_name,
+            "error": error_msg,
+        }
 
 
 @app.get("/beir/available-datasets")
@@ -318,14 +325,16 @@ async def evaluate_results_from_file(dataset_name: str, request: FilePathRequest
     qrels_path = data_dir / "qrels.json"
 
     if not qrels_path.exists():
-        # Instead of throwing an error, we'll return empty metrics
         import logging
 
-        logging.warning(
-            f"Qrels file not found for {dataset_name}, returning empty metrics"
-        )
+        error_msg = f"Qrels file not found for {dataset_name}"
+        logging.warning(error_msg)
         empty_metrics = format_metrics(create_empty_metrics(k_values))
-        return {"metrics": empty_metrics, "dataset_name": dataset_name}
+        return {
+            "metrics": empty_metrics,
+            "dataset_name": dataset_name,
+            "error": error_msg,
+        }
 
     try:
         # Load the results from the file
@@ -351,18 +360,25 @@ async def evaluate_results_from_file(dataset_name: str, request: FilePathRequest
         formatted_metrics = format_metrics(metrics)
 
         return {"metrics": formatted_metrics, "dataset_name": dataset_name}
-    except json.JSONDecodeError:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid JSON format in results file: {file_path}",
-        )
+    except json.JSONDecodeError as e:
+        error_msg = f"Invalid JSON format in results file: {str(e)}"
+        empty_metrics = format_metrics(create_empty_metrics(k_values))
+        return {
+            "metrics": empty_metrics,
+            "dataset_name": dataset_name,
+            "error": error_msg,
+        }
     except Exception as e:
         import logging
 
+        error_msg = f"Error evaluating results: {str(e)}"
         logging.error(f"Error evaluating results for {dataset_name}: {str(e)}")
-        # Return empty metrics instead of error
         empty_metrics = format_metrics(create_empty_metrics(k_values))
-        return {"metrics": empty_metrics, "dataset_name": dataset_name}
+        return {
+            "metrics": empty_metrics,
+            "dataset_name": dataset_name,
+            "error": error_msg,
+        }
 
 
 if __name__ == "__main__":
