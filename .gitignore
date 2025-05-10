@@ -1,5 +1,8 @@
 # Based on https://raw.githubusercontent.com/github/gitignore/main/Node.gitignore
 
+results/*
+py-metrics/beir_data/*
+
 # Logs
 
 logs
@@ -20,7 +23,9 @@ py-metrics/src/__pycache__
 py-metrics/src/py_metrics/__pycache__
 py-metrics/src/py_metrics/types/__pycache__
 */__pycache__/*
-
+py-metrics/src/py_metrics/beir_data/*
+py-metrics/src/py_metrics/evals/__pycache__
+py-metrics/src/py_metrics/scripts/__pycache__
 .cache
 
 # Diagnostic reports (https://nodejs.org/api/report.html)

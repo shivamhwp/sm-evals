@@ -11,84 +11,92 @@ cd py-metrics
 uv pip install -r requirements.txt
 ```
 
-Or use the npm script:
+Or use the bun script:
 
 ```bash
-npm run install:py-deps
+bun run install:py-deps
 ```
 
 ## Available Scripts
 
-The following scripts are available through npm:
+The following scripts are available through bun:
 
-- `start-pymetrics`: Start the FastAPI server for working with BEIR datasets
-- `download-beir`: Download a BEIR dataset (requires a dataset name as argument)
-- `list-beir-datasets`: List available datasets that can be downloaded and those already downloaded
-- `load-beir`: Load BEIR datasets for use with your search system
-- `search-beir`: Run search queries against BEIR datasets
-- `evaluate-beir`: Evaluate search results against BEIR datasets
-
-### Workflow Scripts
-
-The following combined scripts automate common workflows:
-
-- `metrics:download-and-load`: Download and load a BEIR dataset
-- `metrics:search-and-evaluate`: Run search queries and evaluate the results
-- `metrics:all`: Run the entire workflow (start server, download dataset, load dataset, search)
-- `metrics:help`: Display help information about the workflow
+- `start:server`: Start the FastAPI server for working with BEIR datasets
+- `download:dataset`: Download a BEIR dataset (requires a dataset name as argument)
+- `list:datasets`: List available datasets that can be downloaded and those already downloaded
+- `load:dataset`: Load BEIR datasets for use with your search system
+- `search`: Run search queries and save results to a file
+- `evaluate`: Evaluate saved search results
+- `delete:memories`: Delete memories from your search system
 
 ## Typical Workflow
 
 1. **Start the Python metrics API server**:
 
    ```bash
-   npm run start-pymetrics
+   bun run start:server
    ```
 
 2. **List available datasets**:
 
    ```bash
-   npm run list-beir-datasets
+   bun run list:datasets
    ```
 
 3. **Download a dataset**:
 
    ```bash
-   npm run download-beir -- scifact
+   bun run download:dataset -- scifact
    ```
 
 4. **Load the dataset for search**:
 
    ```bash
-   npm run load-beir -- scifact
+   bun run load:dataset -- scifact
    ```
 
-5. **Run search queries**:
+5. **Run search queries and save to file**:
 
    ```bash
-   npm run search-beir -- scifact
+   bun run search -- scifact
    ```
 
-6. **Evaluate search results**:
+   This will:
+
+   - Run search operations in TypeScript
+   - Save results to a file in the `results` directory
+   - Display the file path where results are saved
+
+6. **Evaluate the saved search results**:
+
    ```bash
-   npm run evaluate-beir -- results/scifact_results.json scifact
+   bun run evaluate -- ./results/search_results_scifact_123.json scifact
    ```
+
+   This will:
+
+   - Send the file path to the Python backend for evaluation
+   - Display and save evaluation metrics
+
+## Performance Benefits
+
+The file-based evaluation approach provides these benefits:
+
+1. **Faster Search Response**: Search results are immediately saved to a file without waiting for metric calculations.
+2. **Separation of Concerns**: Search logic is handled by TypeScript, while the Python backend focuses on metric calculation.
+3. **Reproducibility**: Saved search results can be re-evaluated with different parameters without re-running searches.
 
 ## Output
 
-Evaluation results will be saved as JSON files in the same directory as the results file, with a `_metrics.json` suffix.
+- Search results are saved as JSON files in the `results` directory with filenames like `search_results_[dataset]_[timestamp].json`
+- Evaluation results are saved as JSON files with names like `eval_[dataset]_[timestamp].json`
 
 ## API Endpoints
 
-When running the metrics API server, the following endpoints are available:
+The Python backend provides the following endpoints for calculating metrics:
 
-- `GET /`: Check if the API is running
-- `POST /beir/download/{dataset_name}`: Download a BEIR dataset
-- `GET /beir/corpus/{dataset_name}`: Get the corpus for a dataset
-- `GET /beir/queries/{dataset_name}`: Get the queries for a dataset
-- `GET /beir/qrels/{dataset_name}`: Get the qrels (relevance judgments) for a dataset
-- `POST /beir/evaluate/{dataset_name}`: Evaluate search results for a dataset
-- `GET /beir/available-datasets`: List available datasets
+- `/beir/evaluate-from-file/{dataset_name}`: Evaluate BEIR search results from a file
+- `/calculate_metrics_from_file`: Calculate metrics like F1, precision, recall, and BLEU from a file
 
 ## BEIR Datasets
 

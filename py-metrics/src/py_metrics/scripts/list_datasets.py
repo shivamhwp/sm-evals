@@ -3,9 +3,7 @@
 List BEIR datasets that have been downloaded to the local system.
 """
 
-import os
 import json
-import sys
 from pathlib import Path
 
 

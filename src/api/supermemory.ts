@@ -71,12 +71,23 @@ export async function searchMemories(
     console.log(`getting memories from sm : ${response.status}`);
 
     if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
+      let errorBody = "[Could not read error body]";
+      try {
+        errorBody = await response.text();
+      } catch (bodyError) {
+        console.error("Error reading response body:", bodyError);
+      }
+      throw new Error(
+        `HTTP error! Status: ${
+          response.status
+        }. Body: ${errorBody}. Request params: ${JSON.stringify(params)}`
+      );
     }
 
     return await response.json();
   } catch (error) {
     console.error("Error searching memories:", error);
+    console.error("Search parameters causing error:", JSON.stringify(params));
     throw error;
   }
 }
@@ -117,6 +128,54 @@ export async function batchAddMemories(
     // Add a small delay between batches to prevent overwhelming the server
     if (i + BATCH_SIZE < memories.length) {
       await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }
+
+  return results;
+}
+
+// Batch search for multiple queries at once
+export async function batchSearchMemories(
+  searchQueries: SearchRequest[]
+): Promise<Array<{ query: SearchRequest; response: SearchResponse | null }>> {
+  const results: Array<{
+    query: SearchRequest;
+    response: SearchResponse | null;
+  }> = [];
+
+  // Process queries in batches to avoid overwhelming the server
+  const BATCH_SIZE = 10; // Smaller batch size for search as it's more intensive
+
+  for (let i = 0; i < searchQueries.length; i += BATCH_SIZE) {
+    const batch = searchQueries.slice(i, i + BATCH_SIZE);
+    console.log(
+      `Processing search batch ${i / BATCH_SIZE + 1}, size: ${batch.length}`
+    );
+
+    // Process all searches in the current batch in parallel
+    const batchPromises = batch.map(async (query) => {
+      try {
+        const response = await searchMemories(query);
+        return { query, response };
+      } catch (error) {
+        console.error(
+          `Failed to search with query: ${JSON.stringify(query.q)}`,
+          error
+        );
+        // Return null for response on failed searches
+        return { query, response: null };
+      }
+    });
+
+    // Wait for all promises in this batch to resolve
+    const batchResults = await Promise.all(batchPromises);
+
+    // Add to results
+    results.push(...batchResults);
+
+    // Add a small delay between batches to prevent overwhelming the server
+    if (i + BATCH_SIZE < searchQueries.length) {
+      await new Promise((resolve) => setTimeout(resolve, 200));
     }
   }
 

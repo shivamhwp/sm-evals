@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import sys
-from src.py_metrics.beir_downloader import download_beir_dataset
+from py_metrics.scripts.beir_downloader import download_beir_dataset
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:

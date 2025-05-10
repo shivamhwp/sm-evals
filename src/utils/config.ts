@@ -23,7 +23,7 @@ function validateEnv() {
       googleApiKey: "development_key",
       openaiApiKey: "development_key",
       supermemoryApiUrl: "https://v2.api.supermemory.ai/",
-      pymetricsApiUrl: "http://localhost:8000",
+      pymetricsApiUrl: "http://0.0.0.0:8000",
     };
   }
 
@@ -41,7 +41,7 @@ function validateEnv() {
     googleApiKey: googleApiKey || "",
     openaiApiKey: openaiApiKey || "",
     supermemoryApiUrl: supermemoryApiUrl || "https://v2.api.supermemory.ai/",
-    pymetricsApiUrl: pymetricsApiUrl || "http://localhost:8000",
+    pymetricsApiUrl: pymetricsApiUrl || "http://0.0.0.0:8000",
   };
 }
 
