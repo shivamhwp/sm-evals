@@ -158,7 +158,7 @@ async def evaluate_results(
 
         error_msg = f"Qrels file not found for {dataset_name}"
         logging.warning(error_msg)
-        empty_metrics = format_metrics(create_empty_metrics(k_values or [1, 3, 5]))
+        empty_metrics = format_metrics(create_empty_metrics(k_values or [1, 3, 5, 10]))
         return {
             "metrics": empty_metrics,
             "dataset_name": dataset_name,
@@ -180,7 +180,7 @@ async def evaluate_results(
 
         error_msg = f"Error evaluating results: {str(e)}"
         logging.error(f"Error evaluating results for {dataset_name}: {str(e)}")
-        empty_metrics = format_metrics(create_empty_metrics(k_values or [1, 3, 5]))
+        empty_metrics = format_metrics(create_empty_metrics(k_values or [1, 3, 5, 10]))
         return {
             "metrics": empty_metrics,
             "dataset_name": dataset_name,
@@ -313,7 +313,7 @@ async def calculate_metrics_from_file(
 async def evaluate_results_from_file(dataset_name: str, request: FilePathRequest):
     """Evaluate search results from a saved file for a BEIR dataset"""
     file_path = request.file_path
-    k_values = request.k_values or [1, 3, 5]
+    k_values = request.k_values or [1, 3, 5, 10]
 
     if not os.path.exists(file_path):
         raise HTTPException(

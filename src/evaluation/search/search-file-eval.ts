@@ -9,7 +9,8 @@ const datasetName = env.datasetName;
 /**
  * Run search with BEIR dataset and save results to a file
  */
-export async function searchAndSaveResults(limit = 3) {
+
+export async function searchAndSaveResults(limit = 10) {
   console.log(`Starting BEIR search for dataset: ${datasetName}`);
 
   try {

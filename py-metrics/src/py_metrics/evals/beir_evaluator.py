@@ -24,7 +24,7 @@ def evaluate_beir_results(results, qrels_path=None, qrels=None, k_values=None):
         Dict of evaluation metrics
     """
     if k_values is None:
-        k_values = [1, 3, 5]
+        k_values = [1, 3, 5, 10]
 
     # Load qrels if not provided
     if qrels is None:
@@ -212,27 +212,42 @@ def format_metrics(metrics):
                 )
                 # Not enough elements in tuple, return empty metrics
                 return {
-                    "ndcg": {"NDCG@1": 0.0, "NDCG@3": 0.0, "NDCG@5": 0.0},
-                    "map": {"MAP@1": 0.0, "MAP@3": 0.0, "MAP@5": 0.0},
-                    "recall": {"Recall@1": 0.0, "Recall@3": 0.0, "Recall@5": 0.0},
-                    "precision": {"P@1": 0.0, "P@3": 0.0, "P@5": 0.0},
+                    "ndcg": {
+                        "NDCG@1": 0.0,
+                        "NDCG@3": 0.0,
+                        "NDCG@5": 0.0,
+                        "NDCG@10": 0.0,
+                    },
+                    "map": {"MAP@1": 0.0, "MAP@3": 0.0, "MAP@5": 0.0, "MAP@10": 0.0},
+                    "recall": {
+                        "Recall@1": 0.0,
+                        "Recall@3": 0.0,
+                        "Recall@5": 0.0,
+                        "Recall@10": 0.0,
+                    },
+                    "precision": {"P@1": 0.0, "P@3": 0.0, "P@5": 0.0, "P@10": 0.0},
                 }
         except Exception as e:
             logger.error(f"Error converting metrics tuple to dictionary: {e}")
             # Return empty metrics with consistent format on error
             return {
-                "ndcg": {"NDCG@1": 0.0, "NDCG@3": 0.0, "NDCG@5": 0.0},
-                "map": {"MAP@1": 0.0, "MAP@3": 0.0, "MAP@5": 0.0},
-                "recall": {"Recall@1": 0.0, "Recall@3": 0.0, "Recall@5": 0.0},
-                "precision": {"P@1": 0.0, "P@3": 0.0, "P@5": 0.0},
+                "ndcg": {"NDCG@1": 0.0, "NDCG@3": 0.0, "NDCG@5": 0.0, "NDCG@10": 0.0},
+                "map": {"MAP@1": 0.0, "MAP@3": 0.0, "MAP@5": 0.0, "MAP@10": 0.0},
+                "recall": {
+                    "Recall@1": 0.0,
+                    "Recall@3": 0.0,
+                    "Recall@5": 0.0,
+                    "Recall@10": 0.0,
+                },
+                "precision": {"P@1": 0.0, "P@3": 0.0, "P@5": 0.0, "P@10": 0.0},
             }
 
     try:
         # Initialize empty dictionaries with default values
-        ndcg = {"NDCG@1": 0.0, "NDCG@3": 0.0, "NDCG@5": 0.0}
-        map_metrics = {"MAP@1": 0.0, "MAP@3": 0.0, "MAP@5": 0.0}
-        recall = {"Recall@1": 0.0, "Recall@3": 0.0, "Recall@5": 0.0}
-        precision = {"P@1": 0.0, "P@3": 0.0, "P@5": 0.0}
+        ndcg = {"NDCG@1": 0.0, "NDCG@3": 0.0, "NDCG@5": 0.0, "NDCG@10": 0.0}
+        map_metrics = {"MAP@1": 0.0, "MAP@3": 0.0, "MAP@5": 0.0, "MAP@10": 0.0}
+        recall = {"Recall@1": 0.0, "Recall@3": 0.0, "Recall@5": 0.0, "Recall@10": 0.0}
+        precision = {"P@1": 0.0, "P@3": 0.0, "P@5": 0.0, "P@10": 0.0}
 
         # NDCG at different k values
         if "ndcg" in metrics and metrics["ndcg"] and isinstance(metrics["ndcg"], dict):
@@ -287,10 +302,15 @@ def format_metrics(metrics):
         logger.error(f"Error formatting metrics: {e}")
         # Return consistently formatted empty metrics if anything goes wrong
         return {
-            "ndcg": {"NDCG@1": 0.0, "NDCG@3": 0.0, "NDCG@5": 0.0},
-            "map": {"MAP@1": 0.0, "MAP@3": 0.0, "MAP@5": 0.0},
-            "recall": {"Recall@1": 0.0, "Recall@3": 0.0, "Recall@5": 0.0},
-            "precision": {"P@1": 0.0, "P@3": 0.0, "P@5": 0.0},
+            "ndcg": {"NDCG@1": 0.0, "NDCG@3": 0.0, "NDCG@5": 0.0, "NDCG@10": 0.0},
+            "map": {"MAP@1": 0.0, "MAP@3": 0.0, "MAP@5": 0.0, "MAP@10": 0.0},
+            "recall": {
+                "Recall@1": 0.0,
+                "Recall@3": 0.0,
+                "Recall@5": 0.0,
+                "Recall@10": 0.0,
+            },
+            "precision": {"P@1": 0.0, "P@3": 0.0, "P@5": 0.0, "P@10": 0.0},
         }
 
 

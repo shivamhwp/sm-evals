@@ -1,9 +1,13 @@
 import fs from "fs";
 import path from "path";
 
-const datasetName = process.env.DATASET_NAME;
+let datasetName = process.env.DATASET_NAME;
 
 async function evaluateResultsFromFile(file_path: string, k_values?: number[]) {
+  // Use default k_values if not provided
+  const defaultKValues = [1, 3, 5, 10];
+  const kValuesToUse = k_values || defaultKValues;
+
   const response = await fetch(
     `${
       process.env.PYMETRICS_API_URL || "http://0.0.0.0:8000"
@@ -13,7 +17,7 @@ async function evaluateResultsFromFile(file_path: string, k_values?: number[]) {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ file_path, k_values }),
+      body: JSON.stringify({ file_path, k_values: kValuesToUse }),
     }
   );
 
@@ -28,34 +32,13 @@ async function main() {
   // Get input parameters from command line
   const args = process.argv.slice(2);
 
-  if (args.length < 2) {
-    console.error(
-      "Error: Please provide both a results file path and a dataset name"
-    );
-    console.log(
-      "Usage: bun run src/evaluation/evaluate-from-file.ts <results_file_path> <k_values>"
-    );
-    console.log(
-      "Example: bun run src/evaluation/evaluate-from-file.ts ./results/search_results_scifact_123.json 1,3,5"
-    );
-    process.exit(1);
-  }
-
   const resultsFilePath = args[0];
 
-  // Optional: parse k_values if provided
-  let k_values: number[] | undefined;
-  if (args.length > 2) {
-    try {
-      k_values = JSON.parse(args[2]);
-      if (!Array.isArray(k_values) || !k_values.every(Number.isInteger)) {
-        console.error("Error: k_values must be an array of integers");
-        process.exit(1);
-      }
-    } catch (e) {
-      console.error("Error parsing k_values:", e);
-      process.exit(1);
-    }
+  if (!datasetName) {
+    console.error(
+      "Error: Dataset name must be provided as an argument or in the DATASET_NAME environment variable"
+    );
+    process.exit(1);
   }
 
   // Validate that the file exists
@@ -74,8 +57,7 @@ async function main() {
 
     // Call the evaluation API
     const evaluationResults = await evaluateResultsFromFile(
-      absoluteResultsFilePath,
-      k_values
+      absoluteResultsFilePath
     );
 
     // Check if there was an error
@@ -88,9 +70,9 @@ async function main() {
 
     // Display evaluation results in ASCII table
     console.log("\nEvaluation Results:");
-    console.log("┌──────────┬──────────┬──────────┬──────────┐");
-    console.log("│ Metric   │    @1    │    @3    │    @5    │");
-    console.log("├──────────┼──────────┼──────────┼──────────┤");
+    console.log("┌──────────┬──────────┬──────────┬──────────┬──────────┐");
+    console.log("│ Metric   │    @1    │    @3    │    @5    │    @10   │");
+    console.log("├──────────┼──────────┼──────────┼──────────┼──────────┤");
 
     // Create helper function to safely access metric values with fallback
     const getMetricValue = (
@@ -141,6 +123,8 @@ async function main() {
         .toFixed(4)
         .padStart(6)}  │  ${getMetricValue("ndcg", "NDCG@5")
         .toFixed(4)
+        .padStart(6)}  │  ${getMetricValue("ndcg", "NDCG@10")
+        .toFixed(4)
         .padStart(6)}  │`
     );
     console.log(
@@ -149,6 +133,8 @@ async function main() {
         .padStart(6)}  │  ${getMetricValue("map", "MAP@3")
         .toFixed(4)
         .padStart(6)}  │  ${getMetricValue("map", "MAP@5")
+        .toFixed(4)
+        .padStart(6)}  │  ${getMetricValue("map", "MAP@10")
         .toFixed(4)
         .padStart(6)}  │`
     );
@@ -159,6 +145,8 @@ async function main() {
         .toFixed(4)
         .padStart(6)}  │  ${getMetricValue("recall", "Recall@5")
         .toFixed(4)
+        .padStart(6)}  │  ${getMetricValue("recall", "Recall@10")
+        .toFixed(4)
         .padStart(6)}  │`
     );
     console.log(
@@ -168,9 +156,11 @@ async function main() {
         .toFixed(4)
         .padStart(6)}  │  ${getMetricValue("precision", "P@5")
         .toFixed(4)
+        .padStart(6)}  │  ${getMetricValue("precision", "P@10")
+        .toFixed(4)
         .padStart(6)}  │`
     );
-    console.log("└──────────┴──────────┴──────────┴──────────┘");
+    console.log("└──────────┴──────────┴──────────┴──────────┴──────────┘");
 
     // Save evaluation results
     const resultsDir = path.dirname(resultsFilePath);
