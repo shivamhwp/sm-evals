@@ -48,7 +48,7 @@ bun run load:dataset
 4. <b>evaluation time !!</b>
 
 ```bash
-bun run search
+bun run search [search_results_file]
 ```
 
 ### metrics

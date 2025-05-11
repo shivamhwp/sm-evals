@@ -10,7 +10,8 @@
     "load:dataset": "bun run src/scripts/load-beir.ts",
     "search": "bun run src/evaluation/search/search-file-eval.ts",
     "evaluate": "bun run src/evaluation/evaluate-from-file.ts",
-    "install:py-deps": "cd py-metrics && uv pip install -r requirements.txt"
+    "install:py-deps": "cd py-metrics && uv pip install -r requirements.txt",
+    "plot": "cd py-metrics && uv run src/py_metrics/scripts/plot.py"
   },
   "devDependencies": {
     "@types/bun": "latest",
