@@ -46,19 +46,19 @@ The following scripts are available through bun:
 3. **Download a dataset**:
 
    ```bash
-   bun run download:dataset -- scifact
+   bun run download:dataset
    ```
 
 4. **Load the dataset for search**:
 
    ```bash
-   bun run load:dataset -- scifact
+   bun run load:dataset
    ```
 
 5. **Run search queries and save to file**:
 
    ```bash
-   bun run search -- scifact
+   bun run search
    ```
 
    This will:

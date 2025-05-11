@@ -2,11 +2,14 @@ import fs from "fs";
 import path from "path";
 import { batchSearchMemories } from "../../api/supermemory";
 import type { SearchRequest } from "../../types/supermemory";
+import { env } from "../../utils/config";
+
+const datasetName = env.datasetName;
 
 /**
  * Run search with BEIR dataset and save results to a file
  */
-export async function searchAndSaveResults(datasetName: string, limit = 3) {
+export async function searchAndSaveResults(limit = 3) {
   console.log(`Starting BEIR search for dataset: ${datasetName}`);
 
   try {
@@ -136,29 +139,12 @@ export async function searchAndSaveResults(datasetName: string, limit = 3) {
 }
 
 async function main() {
-  // Get dataset name from command line arguments
-  const args = process.argv.slice(2);
-
-  if (args.length === 0) {
-    console.error("Error: Please provide a dataset name");
-    console.log(
-      "Usage: bun run src/evaluation/search/search-file-eval.ts <dataset_name>"
-    );
-    console.log(
-      "Example: bun run src/evaluation/search/search-file-eval.ts scifact"
-    );
-    process.exit(1);
-  }
-
-  const datasetName = args[0];
-
   try {
-    await searchAndSaveResults(datasetName);
+    await searchAndSaveResults();
   } catch (error) {
     console.error("Error:", error);
     process.exit(1);
   }
 }
 
-// Run the main function
 main();

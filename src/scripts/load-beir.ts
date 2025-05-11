@@ -5,6 +5,7 @@ import type { BeirCorpusDoc } from "../types/beir";
 
 const BATCH_SIZE = 20; // Number of documents to process in each batch
 
+const datasetName = process.env.DATASET_NAME;
 /**
  * Transform a BEIR corpus document into a Supermemory memory request
  */
@@ -32,16 +33,16 @@ function beirDocToMemory(doc: BeirCorpusDoc): AddMemoryRequest {
 /**
  * Load a BEIR dataset into Supermemory
  */
-async function loadBeirDatasetToSupermemory(datasetName: string) {
+async function loadBeirDatasetToSupermemory() {
   console.log(`Starting to load BEIR dataset: ${datasetName}`);
 
   // Step 1: Ensure the dataset is downloaded
   console.log(`Ensuring dataset ${datasetName} is downloaded...`);
-  await downloadBeirDataset(datasetName);
+  await downloadBeirDataset();
 
   // Step 2: Fetch the corpus
   console.log(`Fetching corpus for ${datasetName}...`);
-  const corpus = await fetchBeirCorpus(datasetName);
+  const corpus = await fetchBeirCorpus();
 
   // Log corpus size
   const corpusSize = Object.keys(corpus).length;
@@ -100,20 +101,8 @@ async function loadBeirDatasetToSupermemory(datasetName: string) {
 }
 
 async function main() {
-  // Get dataset name from command line arguments
-  const args = process.argv.slice(2);
-
-  if (args.length === 0) {
-    console.error("Error: Please provide a dataset name");
-    console.log("Usage: bun run src/scripts/load-beir.ts <dataset_name>");
-    console.log("Example: bun run src/scripts/load-beir.ts scifact");
-    process.exit(1);
-  }
-
-  const datasetName = args[0];
-
   try {
-    await loadBeirDatasetToSupermemory(datasetName);
+    await loadBeirDatasetToSupermemory();
   } catch (error) {
     console.error("Error loading BEIR dataset:", error);
     process.exit(1);

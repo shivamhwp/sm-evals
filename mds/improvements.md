@@ -5,3 +5,7 @@
 3. can add db and stuff for storage of eval results.
 
 4. use async where you can.
+
+### todo
+
+- [x] save the current dataset in env.

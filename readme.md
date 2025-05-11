@@ -1,141 +1,68 @@
-# Supermemory Evaluation Framework
+## sm-evals.
 
-A framework for evaluating Supermemory's performance using BEIR benchmark datasets for Information Retrieval tasks.
-
-## Overview
-
-This project provides tools to:
-
-1. Download and process BEIR benchmark datasets
-2. Load BEIR datasets into Supermemory
-3. Evaluate Supermemory's retrieval performance using standard IR metrics
-
-## Setup
+testing supermemory on beir benchmark.
 
 ### Requirements
 
-- Node.js and Bun
-- Python 3.10+
-- uv (Python package manager)
-- Environment variables for API access
+have [nodejs](https://nodejs.org/en), [bun](https://bun.sh) and [uv](https://docs.astral.sh/uv/) installed.
 
-### Installation
-
-1. Clone this repository
-2. Install dependencies:
+### setup
 
 ```bash
-# Install JavaScript dependencies
 bun install
-
-# Install Python dependencies
 cd py-metrics
-uv pip install -e .
+bun install:py-deps
 ```
 
-3. Create a `.env` file in the root directory with your API keys:
+create a `.env` in the root of the project.
 
 ```
 SUPERMEMORY_API_KEY=your_api_key
 SUPERMEMORY_API_URL=https://v2.api.supermemory.ai/
 PYMETRICS_API_URL=http://localhost:8000
+DATASET_NAME=""   (scifact,hotpotqa etc.)
 ```
 
 ## Usage
 
-### Step 1: Start the PyMetrics Service
-
-The Python FastAPI service handles BEIR dataset downloading and evaluation:
+1.  start a server on loclhost:8000.
 
 ```bash
-bun run start-pymetrics
+bun run start:server
 ```
 
-This starts a FastAPI server on `http://localhost:8000`.
-
-### Step 2: Download a BEIR Dataset
+2.  download a dataset, learn more [about datasets here](https://github.com/beir-cellar/beir/wiki/Datasets-available)
 
 ```bash
-bun run download-beir scifact
+bun run download:dataset
 ```
 
-Replace `scifact` with the name of any BEIR dataset:
-
-- `scifact`: Scientific fact-checking
-- `nfcorpus`: News and MEDLINE articles
-- `fiqa`: Financial opinion mining
-- `dbpedia-entity`: Entity retrieval
-- And many more...
-
-### Step 3: Load Data into Supermemory
+3. load the dataset into supermemory.
 
 ```bash
-bun run load-beir scifact
+bun run load:dataset
 ```
 
-This will:
+> what does above commands do -> they download the dataset from the beir-benchmark and uploads it into the supermemory's (vector db). the backend do the ingestion,embedding,chunking etc. etc. and makes the content searchable.
 
-1. Download the dataset if not already downloaded
-2. Fetch the corpus from the PyMetrics service
-3. Process and upload documents to Supermemory in batches
-
-### Step 4: Run Search Evaluation
+4. <b>evaluation time !!</b>
 
 ```bash
-bun run search-beir scifact
+bun run search
 ```
 
-This will:
+### metrics
 
-1. Fetch queries and relevance judgments (qrels) from the PyMetrics service
-2. Execute each query against Supermemory
-3. Evaluate the results using standard IR metrics (NDCG, MAP, Recall, Precision)
-4. Save detailed results to the `results/` directory
+we evaluate supermemory on 4 different metrics provided by beir-benchmark.
+NDCG@k, Precision@k, Recall@k, MAP@k  
+(k = 1, 3 & 5).
 
-## Metrics
+### project structure
 
-Evaluation produces the following metrics:
-
-- NDCG@k (Normalized Discounted Cumulative Gain)
-- Precision@k
-- Recall@k
-- MAP@k (Mean Average Precision)
-
-Where k is typically 1, 3, 5, 10, and 100.
-
-## Troubleshooting
-
-### Dataset Download Issues
-
-If you encounter issues with dataset downloads:
-
-1. Check the PyMetrics logs for detailed error messages
-2. Ensure you have sufficient disk space
-3. Try running the download command again, as the download process has improved error handling
-
-The downloader will:
-
-- Download the zip file if it doesn't exist
-- Extract the contents properly
-- Convert JSONL/TSV files to JSON format
-- Handle various dataset structures
-
-### Empty Evaluation Results
-
-If evaluation returns zeros for all metrics:
-
-1. Check if the dataset was downloaded correctly
-2. Verify that the queries and qrels files exist
-3. Ensure that the search results contain document IDs that match those in the qrels file
-
-## Development
-
-### Project Structure
-
-- `py-metrics/`: Python FastAPI service for BEIR dataset handling
-- `src/`: TypeScript codebase
-  - `api/`: API client for Supermemory
-  - `evaluation/`: Evaluation logic
-  - `scripts/`: Utility scripts
-  - `types/`: TypeScript type definitions
-  - `utils/`: Utility functions
+- `py-metrics/`: the backend, a server running on localhost:8000, which does evaluation on the results we get from sm using libraries like
+  - evals : evaluation logic
+  - scripts : utility scripts like downloading & listing datasets.
+- `src/`: ts codebase.
+  - `api/`: api client
+  - `types/`: types
+  - `utils/`: utility functions.

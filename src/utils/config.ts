@@ -11,12 +11,18 @@ function validateEnv() {
   const openaiApiKey = process.env.OPENAI_API_KEY;
   const supermemoryApiUrl = process.env.SUPERMEMORY_API_URL;
   const pymetricsApiUrl = process.env.PYMETRICS_API_URL;
+  const datasetName = process.env.DATASET_NAME;
+
+  if (!datasetName || datasetName === "" || datasetName === undefined) {
+    throw new Error("DATASET_NAME is not set in the environment variables");
+  }
 
   if (!apiKey) {
     console.warn("Warning: SUPERMEMORY_API_KEY is not set in .env file");
     console.warn(
       "Please set up your API key in a .env file to use the API features"
     );
+
     // Return a placeholder value for development
     return {
       apiKey: "development_key",
@@ -24,6 +30,7 @@ function validateEnv() {
       openaiApiKey: "development_key",
       supermemoryApiUrl: "https://v2.api.supermemory.ai/",
       pymetricsApiUrl: "http://0.0.0.0:8000",
+      datasetName: "scifact",
     };
   }
 
@@ -42,14 +49,15 @@ function validateEnv() {
     openaiApiKey: openaiApiKey || "",
     supermemoryApiUrl: supermemoryApiUrl || "https://v2.api.supermemory.ai/",
     pymetricsApiUrl: pymetricsApiUrl || "http://0.0.0.0:8000",
+    datasetName: datasetName,
   };
 }
 
 // BEIR Dataset handling functions
-export async function downloadBeirDataset(datasetName: string): Promise<any> {
+export async function downloadBeirDataset(): Promise<any> {
   try {
     const response = await fetch(
-      `${env.pymetricsApiUrl}/beir/download/${datasetName}`,
+      `${env.pymetricsApiUrl}/beir/download/${env.datasetName}`,
       {
         method: "POST",
       }
@@ -61,17 +69,15 @@ export async function downloadBeirDataset(datasetName: string): Promise<any> {
 
     return await response.json();
   } catch (error) {
-    console.error(`Error downloading BEIR dataset ${datasetName}:`, error);
+    console.error(`Error downloading BEIR dataset ${env.datasetName}:`, error);
     throw error;
   }
 }
 
-export async function fetchBeirCorpus(
-  datasetName: string
-): Promise<BeirCorpus> {
+export async function fetchBeirCorpus(): Promise<BeirCorpus> {
   try {
     const response = await fetch(
-      `${env.pymetricsApiUrl}/beir/corpus/${datasetName}`
+      `${env.pymetricsApiUrl}/beir/corpus/${env.datasetName}`
     );
 
     if (!response.ok) {
@@ -80,17 +86,15 @@ export async function fetchBeirCorpus(
 
     return await response.json();
   } catch (error) {
-    console.error(`Error fetching BEIR corpus for ${datasetName}:`, error);
+    console.error(`Error fetching BEIR corpus for ${env.datasetName}:`, error);
     throw error;
   }
 }
 
-export async function fetchBeirQueries(
-  datasetName: string
-): Promise<BeirQueries> {
+export async function fetchBeirQueries(): Promise<BeirQueries> {
   try {
     const response = await fetch(
-      `${env.pymetricsApiUrl}/beir/queries/${datasetName}`
+      `${env.pymetricsApiUrl}/beir/queries/${env.datasetName}`
     );
 
     if (!response.ok) {
@@ -99,15 +103,15 @@ export async function fetchBeirQueries(
 
     return await response.json();
   } catch (error) {
-    console.error(`Error fetching BEIR queries for ${datasetName}:`, error);
+    console.error(`Error fetching BEIR queries for ${env.datasetName}:`, error);
     throw error;
   }
 }
 
-export async function fetchBeirQrels(datasetName: string): Promise<BeirQrels> {
+export async function fetchBeirQrels(): Promise<BeirQrels> {
   try {
     const response = await fetch(
-      `${env.pymetricsApiUrl}/beir/qrels/${datasetName}`
+      `${env.pymetricsApiUrl}/beir/qrels/${env.datasetName}`
     );
 
     if (!response.ok) {
@@ -116,18 +120,17 @@ export async function fetchBeirQrels(datasetName: string): Promise<BeirQrels> {
 
     return await response.json();
   } catch (error) {
-    console.error(`Error fetching BEIR qrels for ${datasetName}:`, error);
+    console.error(`Error fetching BEIR qrels for ${env.datasetName}:`, error);
     throw error;
   }
 }
 
 export async function evaluateBeirResults(
-  datasetName: string,
   results: Record<string, Record<string, number>>
 ) {
   try {
     const response = await fetch(
-      `${env.pymetricsApiUrl}/beir/evaluate/${datasetName}`,
+      `${env.pymetricsApiUrl}/beir/evaluate/${env.datasetName}`,
       {
         method: "POST",
         headers: {
@@ -145,7 +148,7 @@ export async function evaluateBeirResults(
 
     return await response.json();
   } catch (error) {
-    console.error(`Error evaluating results for ${datasetName}:`, error);
+    console.error(`Error evaluating results for ${env.datasetName}:`, error);
     throw error;
   }
 }

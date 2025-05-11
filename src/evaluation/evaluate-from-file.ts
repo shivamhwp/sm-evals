@@ -1,15 +1,13 @@
 import fs from "fs";
 import path from "path";
 
-async function evaluateResultsFromFile(
-  dataset_name: string,
-  file_path: string,
-  k_values?: number[]
-) {
+const datasetName = process.env.DATASET_NAME;
+
+async function evaluateResultsFromFile(file_path: string, k_values?: number[]) {
   const response = await fetch(
     `${
       process.env.PYMETRICS_API_URL || "http://0.0.0.0:8000"
-    }/beir/evaluate-from-file/${dataset_name}`,
+    }/beir/evaluate-from-file/${datasetName}`,
     {
       method: "POST",
       headers: {
@@ -35,16 +33,15 @@ async function main() {
       "Error: Please provide both a results file path and a dataset name"
     );
     console.log(
-      "Usage: bun run src/evaluation/evaluate-from-file.ts <results_file_path> <dataset_name>"
+      "Usage: bun run src/evaluation/evaluate-from-file.ts <results_file_path> <k_values>"
     );
     console.log(
-      "Example: bun run src/evaluation/evaluate-from-file.ts ./results/search_results_scifact_123.json scifact"
+      "Example: bun run src/evaluation/evaluate-from-file.ts ./results/search_results_scifact_123.json 1,3,5"
     );
     process.exit(1);
   }
 
   const resultsFilePath = args[0];
-  const datasetName = args[1];
 
   // Optional: parse k_values if provided
   let k_values: number[] | undefined;
@@ -77,7 +74,6 @@ async function main() {
 
     // Call the evaluation API
     const evaluationResults = await evaluateResultsFromFile(
-      datasetName,
       absoluteResultsFilePath,
       k_values
     );
