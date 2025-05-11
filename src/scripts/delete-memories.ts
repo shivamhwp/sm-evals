@@ -3,7 +3,18 @@ import path from "path";
 import { env } from "../utils/config";
 
 const API_BASE_URL = env.supermemoryApiUrl;
-const MEM_ID_FILE = path.join(process.cwd(), "src/data/mem-id.json");
+const MEM_ID_FILE = path.join(process.cwd(), "temp-files/mem-id.json");
+
+// Ensure mem-id.json file exists
+function ensureMemIdFileExists() {
+  const dir = path.dirname(MEM_ID_FILE);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  if (!fs.existsSync(MEM_ID_FILE)) {
+    fs.writeFileSync(MEM_ID_FILE, "[]");
+  }
+}
 
 // Fetch all memory IDs from the API
 async function fetchAllMemoryIds() {
@@ -43,6 +54,10 @@ async function fetchAllMemoryIds() {
       console.log(`Fetched page ${page - 1}, got ${memoryIds.length} memories`);
     }
 
+    // Ensure file exists before writing
+    ensureMemIdFileExists();
+    fs.writeFileSync(MEM_ID_FILE, JSON.stringify(allMemoryIds));
+
     console.log(`Found ${allMemoryIds.length} memories to delete`);
     return allMemoryIds;
   } catch (error) {
@@ -54,6 +69,9 @@ async function fetchAllMemoryIds() {
 // Delete all memories
 async function deleteAllMemories() {
   console.log("Starting memory deletion process...");
+
+  // Ensure file exists before reading
+  ensureMemIdFileExists();
 
   // Fetch all memory IDs directly from the API
   const memoryIds = await fetchAllMemoryIds();
@@ -101,9 +119,11 @@ async function deleteAllMemories() {
   console.log(`- Successfully deleted: ${successCount}`);
   console.log(`- Failed to delete: ${failCount}`);
 
-  // Clear the mem-id.json file
-  fs.writeFileSync(MEM_ID_FILE, "[]");
-  console.log(`Cleared all content in ${MEM_ID_FILE}`);
+  // Delete the mem-id.json file
+  if (fs.existsSync(MEM_ID_FILE)) {
+    fs.unlinkSync(MEM_ID_FILE);
+    console.log(`Deleted ${MEM_ID_FILE}`);
+  }
 }
 
 // Main function
