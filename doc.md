@@ -1,8 +1,20 @@
-# Evaluation Results
+# supermemory - universal memory API for the AI era
 
-| Metric    | @1     | @3     | @5     |
-| --------- | ------ | ------ | ------ |
-| NDCG      | 0.5987 | 0.6632 | 0.6616 |
-| MAP       | 0.5676 | 0.6373 | 0.6373 |
-| Recall    | 0.5676 | 0.7105 | 0.7105 |
-| Precision | 0.5987 | 0.2600 | 0.1560 |
+## Evaluation Metrics
+
+We evaluated Supermemory using standard information retrieval metrics: NDCG, MAP, Recall, and Precision at different cutoffs (@1, @3, @5). The results are summarized below:
+
+_See the chart above for a visual representation of these results._
+
+| Metric    | @1    | @3    | @5    |
+| --------- | ----- | ----- | ----- |
+| NDCG      | 59.9% | 66.3% | 66.2% |
+| MAP       | 56.8% | 63.7% | 63.7% |
+| Recall    | 56.8% | 71.1% | 71.1% |
+| Precision | 59.9% | 26.0% | 15.6% |
+
+![Supermemory Evaluation Metrics](https://ypazyw0thq.ufs.sh/f/38t7p527clgq1ge13YZqMy6JQjUcm5nrGbA3h7taFpvB4Nzf)
+
+> we are continuously running test and benchmarks trying to make supermemory fast and super easy to use.
+
+- made with ❤️ by the supermemory team
