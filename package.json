@@ -5,11 +5,11 @@
   "scripts": {
     "start:server": "cd py-metrics && uv run uvicorn py_metrics.main:app --host 0.0.0.0 --port 8000 --reload",
     "delete:memories": "bun run src/scripts/delete-memories.ts",
-    "download:dataset": "cd py-metrics && uv run src/py_metrics/scripts/download_beir.py",
-    "list:datasets": "cd py-metrics && uv run src/py_metrics/scripts/list_datasets.py",
+    "download:dataset": "cd py-metrics && uv run src/py_metrics/beir_downloader.py",
+    "list:datasets": "cd py-metrics && uv run src/py_metrics/list_datasets.py",
     "load:dataset": "bun run src/scripts/load-beir.ts",
-    "search": "bun run src/evaluation/search/search-file-eval.ts",
-    "evaluate": "bun run src/evaluation/evaluate-from-file.ts",
+    "search": "bun run src/search-file-eval.ts",
+    "evaluate": "bun run src/evaluate-from-file.ts",
     "install:py-deps": "cd py-metrics && uv pip install -r requirements.txt",
     "plot": "cd py-metrics && uv run src/py_metrics/scripts/plot.py"
   },

@@ -5,6 +5,8 @@ py-metrics/plots/*
 results/*
 py-metrics/beir_data/*
 
+beir_data/*
+
 # Logs
 
 logs

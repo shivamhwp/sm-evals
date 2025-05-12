@@ -1,5 +1,6 @@
 import { config } from "dotenv";
 import type { BeirCorpus, BeirQueries, BeirQrels } from "../types/beir";
+import fs from "fs";
 
 // Load environment variables from .env file
 config();
@@ -12,9 +13,37 @@ function validateEnv() {
   const supermemoryApiUrl = process.env.SUPERMEMORY_API_URL;
   const pymetricsApiUrl = process.env.PYMETRICS_API_URL;
   const datasetName = process.env.DATASET_NAME;
+  const beirDatasetPath = process.env.BEIR_DATA_ROOT_PATH;
+  const batchSize = process.env.LOAD_BIER_BATCH_SIZE;
+
+  const projectConfig = JSON.parse(
+    fs.readFileSync("project-config.json", "utf-8")
+  );
+  const lgKValues = projectConfig.k_values.lg;
+  const lgMaxRetrievalLimits = projectConfig.max_retrieval_limits.lg;
+  const lgDatasets = projectConfig.datasets.lg;
+  const smKValues = projectConfig.k_values.sm;
+  const smMaxRetrievalLimits = projectConfig.max_retrieval_limits.sm;
+  const smDatasets = projectConfig.datasets.sm;
 
   if (!datasetName || datasetName === "" || datasetName === undefined) {
     throw new Error("DATASET_NAME is not set in the environment variables");
+  }
+
+  if (
+    !beirDatasetPath ||
+    beirDatasetPath === "" ||
+    beirDatasetPath === undefined
+  ) {
+    throw new Error(
+      "BEIR_DATA_ROOT_PATH is not set in the environment variables"
+    );
+  }
+
+  if (!batchSize || batchSize === "" || batchSize === undefined) {
+    throw new Error(
+      "BATCH_SIZE is not set in the environment variables. it must be a number"
+    );
   }
 
   if (!apiKey) {
@@ -31,6 +60,14 @@ function validateEnv() {
       supermemoryApiUrl: "https://v2.api.supermemory.ai/",
       pymetricsApiUrl: "http://0.0.0.0:8000",
       datasetName: "scifact",
+      lgKValues: [1, 3, 5, 10, 20, 50, 100],
+      lgMaxRetrievalLimits: 100,
+      lgDatasets: ["quora"],
+      smKValues: [1, 3, 5, 10],
+      smMaxRetrievalLimits: 10,
+      smDatasets: ["scifact"],
+      beirDatasetPath: "./beir_data",
+      batchSize: 20,
     };
   }
 
@@ -43,6 +80,16 @@ function validateEnv() {
     );
   }
 
+  if (
+    !pymetricsApiUrl ||
+    pymetricsApiUrl === "" ||
+    pymetricsApiUrl === undefined
+  ) {
+    throw new Error(
+      "PYMETRICS_API_URL is not set in the environment variables"
+    );
+  }
+
   return {
     apiKey,
     googleApiKey: googleApiKey || "",
@@ -50,6 +97,14 @@ function validateEnv() {
     supermemoryApiUrl: supermemoryApiUrl || "https://v2.api.supermemory.ai/",
     pymetricsApiUrl: pymetricsApiUrl || "http://0.0.0.0:8000",
     datasetName: datasetName,
+    lgKValues: lgKValues,
+    lgMaxRetrievalLimits: lgMaxRetrievalLimits,
+    lgDatasets: lgDatasets,
+    smKValues: smKValues,
+    smMaxRetrievalLimits: smMaxRetrievalLimits,
+    smDatasets: smDatasets,
+    beirDatasetPath: beirDatasetPath,
+    batchSize: parseInt(batchSize),
   };
 }
 

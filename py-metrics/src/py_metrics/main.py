@@ -6,13 +6,13 @@ from typing import Dict, List, Optional
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from py_metrics.scripts.beir_downloader import download_beir_dataset
-from py_metrics.evals.beir_evaluator import (
+from py_metrics.beir_downloader import download_beir_dataset
+from py_metrics.beir_evaluator import (
     evaluate_beir_results,
     format_metrics,
     create_empty_metrics,
 )
-from py_metrics.evals.calculate_metrics import (
+from py_metrics.calculate_metrics import (
     compute_classification_metrics,
     compute_bleu_score,
 )
@@ -20,6 +20,9 @@ from py_metrics.evals.calculate_metrics import (
 from py_metrics.types.metrics import MetricsPayload
 
 app = FastAPI(title="BEIR API", description="API for working with BEIR datasets")
+
+# Get BEIR data path from environment variable
+BEIR_DATA_ROOT_PATH = os.getenv("BEIR_DATA_ROOT_PATH", "./beir_data")
 
 
 class DownloadResponse(BaseModel):
@@ -77,7 +80,7 @@ async def download_dataset(dataset_name: str):
 @app.get("/beir/corpus/{dataset_name}")
 async def get_corpus(dataset_name: str):
     """Get the corpus for a BEIR dataset"""
-    data_dir = Path(__file__).parent.parent.parent / "beir_data" / dataset_name
+    data_dir = Path(BEIR_DATA_ROOT_PATH) / dataset_name
     corpus_path = data_dir / "corpus.json"
 
     if not corpus_path.exists():
@@ -100,7 +103,7 @@ async def get_corpus(dataset_name: str):
 @app.get("/beir/queries/{dataset_name}")
 async def get_queries(dataset_name: str):
     """Get the queries for a BEIR dataset"""
-    data_dir = Path(__file__).parent.parent.parent / "beir_data" / dataset_name
+    data_dir = Path(BEIR_DATA_ROOT_PATH) / dataset_name
     queries_path = data_dir / "queries.json"
 
     if not queries_path.exists():
@@ -123,7 +126,7 @@ async def get_queries(dataset_name: str):
 @app.get("/beir/qrels/{dataset_name}")
 async def get_qrels(dataset_name: str):
     """Get the qrels for a BEIR dataset"""
-    data_dir = Path(__file__).parent.parent.parent / "beir_data" / dataset_name
+    data_dir = Path(BEIR_DATA_ROOT_PATH) / dataset_name
     qrels_path = data_dir / "qrels.json"
 
     if not qrels_path.exists():
@@ -150,7 +153,7 @@ async def evaluate_results(
     k_values: Optional[List[int]] = None,
 ):
     """Evaluate search results for a BEIR dataset"""
-    data_dir = Path(__file__).parent.parent.parent / "beir_data" / dataset_name
+    data_dir = Path(BEIR_DATA_ROOT_PATH) / dataset_name
     qrels_path = data_dir / "qrels.json"
 
     if not qrels_path.exists():
@@ -191,7 +194,7 @@ async def evaluate_results(
 @app.get("/beir/available-datasets")
 async def get_available_datasets():
     """Get a list of available datasets that have been downloaded"""
-    beir_data_dir = Path(__file__).parent.parent.parent / "beir_data"
+    beir_data_dir = Path(BEIR_DATA_ROOT_PATH)
 
     if not beir_data_dir.exists():
         return {"available_datasets": []}
@@ -246,9 +249,15 @@ async def calculate_metrics_endpoint(payload: MetricsPayload):
 @app.post("/calculate_metrics_from_file")
 async def calculate_metrics_from_file(
     metrics_payload: MetricsPayload,
-    file_path: str = "search_results_scifact_2025-05-09T16-00-53.380Z.json",
+    file_path: str,
 ):
     """Calculate metrics by comparing saved results with ground truth data"""
+
+    if not file_path:
+        raise HTTPException(
+            status_code=400, detail="File path is required to calculate metrics"
+        )
+
     if not os.path.exists(file_path):
         raise HTTPException(
             status_code=404, detail=f"Results file not found at path: {file_path}"
@@ -321,13 +330,34 @@ async def evaluate_results_from_file(dataset_name: str, request: FilePathRequest
             detail=f"Results file not found at path: {file_path}",
         )
 
-    data_dir = Path(__file__).parent.parent.parent / "beir_data" / dataset_name
-    qrels_path = data_dir / "qrels.json"
+    possible_paths = [
+        os.path.join(BEIR_DATA_ROOT_PATH, dataset_name, "qrels.json"),
+        # Path relative to the project root
+        os.path.join(
+            os.path.dirname(
+                os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+            ),
+            BEIR_DATA_ROOT_PATH,
+            dataset_name,
+            "qrels.json",
+        ),
+        # Direct path in project root
+        os.path.join("beir_data", dataset_name, "qrels.json"),
+    ]
 
-    if not qrels_path.exists():
+    qrels_path = None
+    for path in possible_paths:
+        if os.path.exists(path):
+            qrels_path = path
+            break
+
+    print("qrels_path", qrels_path)
+
+    if not qrels_path:
         import logging
 
-        error_msg = f"Qrels file not found for {dataset_name}"
+        paths_tried = "\n".join(possible_paths)
+        error_msg = f"Qrels file not found for {dataset_name}. Tried:\n{paths_tried}"
         logging.warning(error_msg)
         empty_metrics = format_metrics(create_empty_metrics(k_values))
         return {
