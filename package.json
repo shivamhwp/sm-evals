@@ -11,7 +11,8 @@
     "search": "bun run src/search-file-eval.ts",
     "evaluate": "bun run src/evaluate-from-file.ts",
     "install:py-deps": "cd py-metrics && uv pip install -r requirements.txt",
-    "plot": "cd py-metrics && uv run src/py_metrics/scripts/plot.py"
+    "plot": "cd py-metrics && uv run src/py_metrics/scripts/plot.py",
+    "compare": "cd py-metrics && uv run src/py_metrics/compare-res.py"
   },
   "devDependencies": {
     "@types/bun": "latest",
