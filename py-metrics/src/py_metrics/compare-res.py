@@ -72,7 +72,7 @@ def compare_metrics(json_file1, json_file2):
 
     # Define high-quality color palette
     colors = ["#3274A1", "#E1812C"]
-
+    #  colors = ["#036AF0", "#C3F4FF"] similar to brands colors
     # Extract values for the specific metrics
     values1 = []
     values2 = []
